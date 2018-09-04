@@ -1,6 +1,7 @@
 package dispatcher
 
 import (
+	"bytes"
 	"encoding/hex"
 	"errors"
 
@@ -25,6 +26,9 @@ func NewTransaction(transaction *userevent.Transaction) error {
 	}
 	if !userevent.Validate(transaction) {
 		return errors.New("error signature")
+	}
+	if bytes.EqualFold(transaction.GetFrom(), transaction.GetTo()) {
+		return errors.New("invalid address")
 	}
 	blockchain_manager.GetMainChain().NewTransaction(transaction)
 	return nil
