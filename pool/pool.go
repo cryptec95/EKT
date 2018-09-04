@@ -1,240 +1,292 @@
 package pool
 
 import (
-	"sort"
-
-	"github.com/EducationEKT/EKT/core/common"
-	"github.com/EducationEKT/EKT/event"
-	"strings"
+	"encoding/hex"
+	"github.com/EducationEKT/EKT/core/userevent"
 )
 
 const (
+	TX_POOL_CHAN_SIZE       = 10
+	GET_USEREVENT_CHAN_SIZE = 100
+
 	Block = 0
 	Ready = 1
 )
 
-//等待依赖队列 k:user address v:transactions of user
-type BlockTxQueue map[string]UserTransactions
-
-//就绪队列 k:transaction id v:transaction
-type ReadyTxQueue map[string]*common.Transaction
-
-type ReadyEventQueue map[string]event.Event
-
-type BlockEventQueue map[string]UserEvents
-
-//wrapper for sort
-type UserTransactions []*common.Transaction
-
-type UserEvents []event.Event
-
-type Pool struct {
-	txReady    ReadyTxQueue
-	txBlock    BlockTxQueue
-	eventReady ReadyEventQueue
-	eventBlock BlockEventQueue
+type MultiFetcher struct {
+	Chan chan userevent.SortedUserEvent
+	num  int
 }
 
-func NewPool() *Pool {
-	return &Pool{
-		txReady:    make(map[string]*common.Transaction),
-		txBlock:    make(map[string]UserTransactions),
-		eventBlock: make(map[string]UserEvents),
-		eventReady: make(map[string]event.Event),
+type UserEventGetter struct {
+	Chan      chan userevent.SortedUserEvent
+	EventType int
+	Address   string
+}
+
+type EventGetter struct {
+	Chan    chan userevent.IUserEvent
+	eventId string
+}
+
+func NewUserEventGetter(address string, eventType int) UserEventGetter {
+	return UserEventGetter{
+		Chan:      make(chan userevent.SortedUserEvent),
+		EventType: eventType,
+		Address:   address,
 	}
 }
 
-func (pool Pool) ParkEvent(evt event.Event, reason int) {
-	if Ready == reason {
-		pool.eventReady[evt.EventParam.Id()] = evt
-	} else if Block == reason {
-		if strings.EqualFold(event.UpdatePublicKeyEvent, evt.EventType) {
-			evtParam := evt.EventParam.(event.UpdatePublicKeyParam)
-			events := pool.eventBlock[evtParam.Address]
-			events = append(events, evt)
-			sort.Sort(events)
-			pool.eventBlock[evtParam.Address] = events
-		}
+func (pool *TxPool) GetReadyEvents(address string) userevent.SortedUserEvent {
+	getter := NewUserEventGetter(address, Ready)
+	pool.UserEventGetter <- getter
+	return <-getter.Chan
+}
+
+func (pool *TxPool) GetBlockEvents(address string) userevent.SortedUserEvent {
+	getter := NewUserEventGetter(address, Block)
+	pool.UserEventGetter <- getter
+	return <-getter.Chan
+}
+
+func NewEventGetter(eventId string) EventGetter {
+	return EventGetter{
+		Chan:    make(chan userevent.IUserEvent),
+		eventId: eventId,
 	}
 }
 
-func (pool Pool) NotifyEvent(evtId string) *event.Event {
-	evt, exist := pool.eventReady[evtId]
-	if !exist {
-		return nil
-	}
-	delete(pool.eventReady, evt.EventParam.Id())
-	if strings.EqualFold(evt.EventType, event.UpdatePublicKeyEvent) {
-		param := evt.EventParam.(event.UpdatePublicKeyParam)
-		address := param.Address
-		nonce := param.Nonce
-		txs := pool.txBlock[address]
-		if txs != nil && len(txs) > 0 {
-			for i, _tx := range txs {
-				if _tx.Nonce == nonce+1 {
-					txs = append(txs[:i], txs[i+1:]...)
-					pool.txReady[_tx.TransactionId()] = _tx
-					pool.txBlock[address] = txs
-					break
-				}
-			}
-		}
-		events := pool.eventBlock[address]
-		if events != nil && len(events) > 0 {
-			for i, _evt := range events {
-				if _evt.EventParam.(event.UpdatePublicKeyParam).Nonce == nonce+1 {
-					events = append(events[:i], events[i+1:]...)
-					pool.eventReady[_evt.EventParam.Id()] = _evt
-					pool.eventBlock[address] = events
-					break
-				}
-			}
-		}
-	}
-	return &evt
-}
-
-/*
-把交易放在 pool 里等待打包
-*/
-func (pool Pool) ParkTx(tx *common.Transaction, reason int) {
-	if reason == Ready {
-		pool.txReady[tx.TransactionId()] = tx
-	} else if reason == Block {
-		txs_slice := pool.txBlock[tx.From]
-		for _, _tx := range txs_slice {
-			if _tx.String() == tx.String() {
-				return
-			}
-		}
-		txs_slice = append(txs_slice, tx)
-		sort.Sort(txs_slice)
-		pool.txBlock[tx.From] = txs_slice
+func NewMultiFetcher(num int) MultiFetcher {
+	return MultiFetcher{
+		Chan: make(chan userevent.SortedUserEvent),
+		num:  num,
 	}
 }
 
-/*
-当交易被区块打包后,将交易移出pool
-如果当前用户有Nonce比当前大一的tx在Block队列，则移动至ready队列
-*/
-func (pool Pool) Notify(txId string) *common.Transaction {
-	tx, exist := pool.txReady[txId]
-	if !exist {
-		return nil
-	}
-	delete(pool.txReady, tx.TransactionId())
+type TxPool struct {
+	all   map[string]userevent.IUserEvent
+	ready map[string]userevent.SortedUserEvent
+	block map[string]userevent.SortedUserEvent
 
-	address := tx.From
-	nonce := tx.Nonce
+	SingleReady chan userevent.IUserEvent
+	SingleBlock chan userevent.IUserEvent
+	MultiReady  chan userevent.SortedUserEvent
+	MultiBlock  chan userevent.SortedUserEvent
 
-	txs := pool.txBlock[address]
-	if txs != nil && len(txs) > 0 {
-		for i, _tx := range txs {
-			if _tx.Nonce == nonce+1 {
-				txs = append(txs[:i], txs[i+1:]...)
-				pool.txReady[_tx.TransactionId()] = _tx
-				pool.txBlock[address] = txs
-				break
-			}
-		}
-	}
+	SingleFetcher chan chan userevent.IUserEvent
+	MultiFetcher  chan MultiFetcher
 
-	events := pool.eventBlock[address]
-	if events != nil && len(events) > 0 {
-		for i, _evt := range events {
-			if _evt.EventParam.(event.UpdatePublicKeyParam).Nonce == nonce+1 {
-				events = append(events[:i], events[i+1:]...)
-				pool.eventReady[_evt.EventParam.Id()] = _evt
-				pool.eventBlock[address] = events
-				break
-			}
-		}
-	}
-	return tx
+	EventGetter chan EventGetter
+	EventPutter chan userevent.IUserEvent
+
+	UserEventGetter chan UserEventGetter
+
+	Notify chan []string
 }
 
-/*当交易被区块打包后,将交易批量移出pool
+func NewTxPool() *TxPool {
+	pool := &TxPool{
+		all:   make(map[string]userevent.IUserEvent),
+		ready: make(map[string]userevent.SortedUserEvent),
+		block: make(map[string]userevent.SortedUserEvent),
 
- */
-func (pool Pool) BatchNotify(txs []*common.Transaction) {
-	for _, tx := range txs {
-		pool.Notify(tx.TransactionId())
+		SingleReady: make(chan userevent.IUserEvent, TX_POOL_CHAN_SIZE),
+		SingleBlock: make(chan userevent.IUserEvent, TX_POOL_CHAN_SIZE),
+		MultiReady:  make(chan userevent.SortedUserEvent, TX_POOL_CHAN_SIZE),
+		MultiBlock:  make(chan userevent.SortedUserEvent, TX_POOL_CHAN_SIZE),
+
+		SingleFetcher: make(chan chan userevent.IUserEvent),
+		MultiFetcher:  make(chan MultiFetcher),
+
+		EventGetter: make(chan EventGetter, GET_USEREVENT_CHAN_SIZE),
+		EventPutter: make(chan userevent.IUserEvent, GET_USEREVENT_CHAN_SIZE),
+
+		UserEventGetter: make(chan UserEventGetter, GET_USEREVENT_CHAN_SIZE),
+
+		Notify: make(chan []string),
 	}
+
+	go pool.loop()
+
+	return pool
 }
 
-func (pool Pool) FetchEvent() *event.Event {
-	if len(pool.eventReady) > 0 {
-		for _, evt := range pool.eventReady {
-			delete(pool.eventReady, evt.EventParam.Id())
-			return &evt
-		}
-	}
-	return nil
-}
-
-func (pool Pool) FetchTx() *common.Transaction {
-	if len(pool.txReady) > 0 {
-		for _, tx := range pool.txReady {
-			delete(pool.txReady, tx.TransactionId())
-			return tx
-		}
-	}
-	return nil
-}
-
-/*
-返回能够打包的指定数量的交易
-如果size小于等于0，返回全部
-*/
-func (pool Pool) Fetch(size int) (result []*common.Transaction) {
-	result = []*common.Transaction{}
-	record := []*common.Transaction{}
-	var count int = 0
-	if size < 0 {
-		size = ^(size << 31)
-	}
+func (pool *TxPool) loop() {
 	for {
-		for txId, transaction := range pool.txReady {
-			delete(pool.txReady, txId)
-			result = append(result, transaction)
-			count++
-			record = append(record, transaction)
-			if count >= size { //watch
-				pool.BatchNotify(record)
-				return
+		select {
+		case event := <-pool.SingleReady:
+			pool.parkReady(event)
+		case event := <-pool.SingleBlock:
+			pool.parkBlock(event)
+		case events := <-pool.MultiReady:
+			pool.parkMultiReady(events)
+		case events := <-pool.MultiBlock:
+			pool.parkMultiBlock(events)
+
+		case singleer := <-pool.SingleFetcher:
+			event := pool.SingleEvent()
+			singleer <- event
+		case multier := <-pool.MultiFetcher:
+			events := pool.MultiEvent(multier.num)
+			multier.Chan <- events
+
+		case getter := <-pool.EventGetter:
+			eventId := getter.eventId
+			event, exist := pool.all[eventId]
+			if exist {
+				getter.Chan <- event
+			} else {
+				getter.Chan <- nil
 			}
-			if len(pool.txReady) == 0 {
-				pool.BatchNotify(record)
-				record = []*common.Transaction{}
+		case event := <-pool.EventPutter:
+			pool.all[event.EventId()] = event
+
+		case getter := <-pool.UserEventGetter:
+			if getter.EventType == Ready {
+				getter.Chan <- pool.ready[getter.Address]
+			} else {
+				getter.Chan <- pool.block[getter.Address]
 			}
-			if len(pool.txReady) == 0 {
-				return
+
+		case events := <-pool.Notify:
+			pool.notify(events)
+		}
+	}
+}
+
+func (pool *TxPool) notify(events []string) {
+	if len(events) == 0 {
+		return
+	}
+	for _, eventId := range events {
+		if event, exist := pool.all[eventId]; exist {
+			readyList, exist := pool.ready[hex.EncodeToString(event.GetFrom())]
+			if exist {
+				pool.ready[hex.EncodeToString(event.GetFrom())] = readyList.Delete(eventId)
+			}
+			blockList, exist := pool.block[hex.EncodeToString(event.GetFrom())]
+			if exist {
+				pool.block[hex.EncodeToString(event.GetFrom())] = blockList.Delete(eventId)
 			}
 		}
 	}
-	return
 }
 
-func (u UserTransactions) Len() int {
-	return len(u)
+func (pool *TxPool) SingleEvent() userevent.IUserEvent {
+	for _, list := range pool.ready {
+		if len(list) > 0 {
+			event := list[0]
+			list = list[1:]
+			pool.ready[hex.EncodeToString(event.GetFrom())] = list
+			return event
+		}
+	}
+	return nil
 }
 
-func (u UserTransactions) Swap(i, j int) {
-	u[i], u[j] = u[j], u[i]
+func (pool *TxPool) MultiEvent(num int) userevent.SortedUserEvent {
+	for _, list := range pool.ready {
+		if len(list) > 0 {
+			address := hex.EncodeToString(list[0].GetFrom())
+			var result userevent.SortedUserEvent
+			if len(list) > num {
+				result = list[:num]
+				list = list[num:]
+				pool.ready[address] = list
+			} else {
+				result = list
+				delete(pool.ready, address)
+			}
+			return result
+		}
+	}
+	return nil
 }
 
-func (u UserTransactions) Less(i, j int) bool {
-	return u[i].Nonce < u[j].Nonce
+func (pool *TxPool) parkReady(event userevent.IUserEvent) {
+	address := hex.EncodeToString(event.GetFrom())
+	events := pool.ready[address]
+	if len(events) == 0 {
+		events = make(userevent.SortedUserEvent, 0)
+	}
+	pool.all[event.EventId()] = event
+	events = events.QuickInsert(event)
+	pool.ready[address] = events
+	pool.mergeReadyAndBlock(address)
 }
 
-func (events UserEvents) Len() int {
-	return len(events)
+func (pool *TxPool) parkBlock(event userevent.IUserEvent) {
+	address := hex.EncodeToString(event.GetFrom())
+	events := pool.block[address]
+	if len(events) == 0 {
+		events = make(userevent.SortedUserEvent, 0)
+	}
+	pool.all[event.EventId()] = event
+	events = events.QuickInsert(event)
+	pool.block[address] = events
+	pool.mergeReadyAndBlock(address)
 }
 
-func (events UserEvents) Swap(i, j int) {
-	events[i], events[j] = events[j], events[i]
+func (pool *TxPool) parkMultiReady(events userevent.SortedUserEvent) {
+	if len(events) == 0 {
+		return
+	}
+	address := hex.EncodeToString(events[0].GetFrom())
+	readyList, exist := pool.ready[address]
+	if !exist {
+		readyList = make(userevent.SortedUserEvent, 0)
+	}
+	for i, _ := range events {
+		pool.all[events[i].EventId()] = events[i]
+		readyList.QuickInsert(events[i])
+	}
+	pool.mergeReadyAndBlock(address)
 }
 
-func (events UserEvents) Less(i, j int) bool {
-	return events[i].EventParam.(event.UpdatePublicKeyParam).Nonce < events[j].EventParam.(event.UpdatePublicKeyParam).Nonce
+func (pool *TxPool) parkMultiBlock(events userevent.SortedUserEvent) {
+	if len(events) == 0 {
+		return
+	}
+	address := hex.EncodeToString(events[0].GetFrom())
+	blockList, exist := pool.block[address]
+	if !exist {
+		blockList = make(userevent.SortedUserEvent, 0)
+	}
+	for i, _ := range events {
+		pool.all[events[i].EventId()] = events[i]
+		blockList.QuickInsert(events[i])
+	}
+	pool.mergeReadyAndBlock(address)
+}
+
+func (pool *TxPool) mergeReadyAndBlock(address string) {
+	readyList, exist := pool.ready[address]
+	if !exist {
+		return
+	}
+
+	blockList, exist := pool.block[address]
+	if !exist {
+		return
+	}
+
+	numMerged := 0
+	if len(readyList) > 0 && len(blockList) > 0 {
+		lastNonce := readyList[readyList.Len()-1].GetNonce()
+		for i, event := range blockList {
+			if event.GetNonce() == lastNonce+1 {
+				lastNonce++
+				numMerged++
+				readyList = readyList.QuickInsert(blockList[i])
+			} else {
+				break
+			}
+		}
+	}
+
+	if numMerged > 0 {
+		blockList = blockList[numMerged:]
+		pool.ready[address] = readyList
+		pool.block[address] = blockList
+	}
 }

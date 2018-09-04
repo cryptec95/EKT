@@ -2,7 +2,6 @@ package api
 
 import (
 	"encoding/json"
-	"fmt"
 
 	"github.com/EducationEKT/EKT/blockchain"
 	"github.com/EducationEKT/EKT/blockchain_manager"
@@ -22,15 +21,12 @@ func voteBlock(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
 	var vote blockchain.BlockVote
 	err := json.Unmarshal(req.Body, &vote)
 	if err != nil {
-		fmt.Println("Invalid vote, abort.")
 		return x_resp.Return(nil, err)
 	}
-	fmt.Printf("Recieved a vote: %s.\n", string(vote.Bytes()))
 	if !vote.Validate() {
-		fmt.Println("Invalid vote, abort.")
 		return x_resp.Return(false, nil)
 	}
-	blockchain_manager.GetMainChainConsensus().VoteFromPeer(vote)
+	go blockchain_manager.GetMainChainConsensus().VoteFromPeer(vote)
 	return nil, nil
 }
 
@@ -38,10 +34,9 @@ func voteResult(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
 	var votes blockchain.Votes
 	err := json.Unmarshal(req.Body, &votes)
 	if err != nil {
-		fmt.Println("Invalid vote, unmarshal fail, abort.")
 		return x_resp.Return(nil, err)
 	}
-	blockchain_manager.GetMainChainConsensus().RecieveVoteResult(votes)
+	go blockchain_manager.GetMainChainConsensus().RecieveVoteResult(votes)
 	return x_resp.Success(make(map[string]interface{})), nil
 }
 

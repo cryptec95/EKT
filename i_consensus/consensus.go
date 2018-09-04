@@ -1,7 +1,7 @@
 package i_consensus
 
 const (
-	DPOS = 1
+	DBFT = 1
 	POW  = 2
 	POS  = 3
 )

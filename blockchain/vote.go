@@ -5,10 +5,10 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"sort"
 	"strings"
 	"sync"
 
+	"github.com/EducationEKT/EKT/core/types"
 	"github.com/EducationEKT/EKT/crypto"
 	"github.com/EducationEKT/EKT/log"
 	"github.com/EducationEKT/EKT/p2p"
@@ -21,12 +21,12 @@ func init() {
 }
 
 type BlockVote struct {
-	BlockchainId []byte   `json:"blockchainId"`
-	BlockHash    []byte   `json:"blockHash"`
-	BlockHeight  int64    `json:"blockHeight"`
-	VoteResult   bool     `json:"voteResult"`
-	Peer         p2p.Peer `json:"peer"`
-	Signature    []byte   `json:"signature"`
+	BlockchainId int64          `json:"blockchainId"`
+	BlockHash    types.HexBytes `json:"blockHash"`
+	BlockHeight  int64          `json:"blockHeight"`
+	VoteResult   bool           `json:"voteResult"`
+	Peer         p2p.Peer       `json:"peer"`
+	Signature    types.HexBytes `json:"signature"`
 }
 
 type Votes []BlockVote
@@ -56,13 +56,11 @@ func (vote VoteResults) SetVoteResults(hash string, votes Votes) {
 }
 
 func (vote BlockVote) Validate() bool {
-	pubKey_, err := crypto.RecoverPubKey(crypto.Sha3_256(vote.Data()), vote.Signature)
+	pubKey, err := crypto.RecoverPubKey(crypto.Sha3_256(vote.Data()), vote.Signature)
 	if err != nil {
-		fmt.Printf("BlockVote.Validate: recover public key failed, return false.")
 		return false
 	}
-	if !strings.EqualFold(hex.EncodeToString(crypto.Sha3_256(pubKey_)), vote.Peer.PeerId) {
-		fmt.Printf("Recovered public key: %s", hex.EncodeToString(pubKey_))
+	if !strings.EqualFold(hex.EncodeToString(types.FromPubKeyToAddress(pubKey)), vote.Peer.Account) {
 		return false
 	}
 	return true
@@ -102,7 +100,6 @@ func (vote VoteResults) Insert(voteResult BlockVote) {
 			}
 		}
 		votes = append(votes, voteResult)
-		sort.Sort(votes)
 	} else {
 		votes = make([]BlockVote, 0)
 		votes = append(votes, voteResult)

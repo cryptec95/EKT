@@ -10,11 +10,10 @@ import (
 )
 
 type Peer struct {
-	PeerId         string `json:"peerId"`
+	Account        string `json:"account"`
 	Address        string `json:"address"`
 	Port           int32  `json:"port"`
 	AddressVersion int    `json:"addressVersion"`
-	AccountAddress string `json:"accountAddress"`
 }
 
 type Peers []Peer
@@ -37,14 +36,14 @@ func (peer Peer) IsAlive() bool {
 	return true
 }
 
-func (peer Peer) Equal(peer_ Peer) bool {
-	if strings.EqualFold(peer.Address, peer_.Address) && peer.Port == peer_.Port && peer.AddressVersion == peer_.AddressVersion {
+func (peer Peer) Equal(_peer Peer) bool {
+	if strings.EqualFold(peer.Account, _peer.Account) && strings.EqualFold(peer.Address, _peer.Address) && peer.Port == _peer.Port && peer.AddressVersion == _peer.AddressVersion {
 		return true
 	}
 	return false
 }
 
-func (peer Peer) GetDBValue(key []byte) ([]byte, error) {
-	url := fmt.Sprintf(`http://%s:%d/db/api/get`, peer.Address, peer.Port)
-	return util.HttpPost(url, key)
+func (peer Peer) GetDBValue(key string) ([]byte, error) {
+	url := fmt.Sprintf(`http://%s:%d/db/api/getByHex?hash=%s`, peer.Address, peer.Port, key)
+	return util.HttpGet(url)
 }

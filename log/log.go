@@ -3,16 +3,15 @@ package log
 import (
 	"sync"
 
-	"github.com/EducationEKT/EKT/conf"
 	"github.com/EducationEKT/EKT/xlog"
 )
 
 var once sync.Once
 var l xlog.XLog
 
-func InitLog() {
+func InitLog(logPath string) {
 	once.Do(func() {
-		l = xlog.NewDailyLog(conf.EKTConfig.LogPath)
+		l = xlog.NewDailyLog(logPath)
 	})
 }
 
