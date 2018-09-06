@@ -28,7 +28,7 @@ func Init() {
 		Blockchains: make(map[int64]*blockchain.BlockChain),
 		Consensuses: make(map[int64]i_consensus.Consensus),
 	}
-	MainBlockChain = blockchain.NewBlockChain(blockchain.BackboneChainId, blockchain.BackboneConsensus, blockchain.BackboneChainFee, nil, blockchain.BackboneBlockInterval)
+	MainBlockChain = blockchain.NewBlockChain()
 	MainBlockChainConsensus = consensus.NewDbftConsensus(MainBlockChain)
 	go MainBlockChainConsensus.StableRun()
 	value, err := db.GetDBInst().Get([]byte(BlockchainManagerDBKey))

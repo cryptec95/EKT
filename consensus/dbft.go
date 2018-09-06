@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"errors"
-	"github.com/EducationEKT/EKT/MPTPlus"
 	"github.com/EducationEKT/EKT/blockchain"
 	"github.com/EducationEKT/EKT/conf"
 	"github.com/EducationEKT/EKT/core/types"
@@ -564,36 +563,10 @@ func (dbft DbftConsensus) RecoverFromDB() {
 	if err != nil || block == nil {
 		// 将创世块写入数据库
 		accounts := conf.EKTConfig.GenesisBlockAccounts
-		block = &blockchain.Block{
-			Height:       0,
-			Nonce:        0,
-			Fee:          dbft.Blockchain.Fee,
-			TotalFee:     0,
-			PreviousHash: nil,
-			CurrentHash:  nil,
-			BlockBody:    blockchain.NewBlockBody(),
-			Body:         nil,
-			Timestamp:    0,
-			Locker:       sync.RWMutex{},
-			StatTree:     MPTPlus.NewMTP(db.GetDBInst()),
-			StatRoot:     nil,
-			TxTree:       MPTPlus.NewMTP(db.GetDBInst()),
-			TxRoot:       nil,
-			TokenTree:    MPTPlus.NewMTP(db.GetDBInst()),
-			TokenRoot:    nil,
-		}
-
-		for _, account := range accounts {
-			block.CreateGenesisAccount(account)
-		}
-
-		block.UpdateMPTPlusRoot()
-
-		block.CaculateHash()
-
+		block = blockchain.GenesisBlock(accounts)
 		dbft.Blockchain.SaveBlock(*block)
 	}
-	dbft.Blockchain.SetLastBlock(block)
+	dbft.Blockchain.SetLastBlock(*block)
 }
 
 // 获取存活的委托人节点数量
