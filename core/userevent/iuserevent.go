@@ -2,6 +2,7 @@ package userevent
 
 import (
 	"bytes"
+	"encoding/json"
 	"github.com/EducationEKT/EKT/core/types"
 	"github.com/EducationEKT/EKT/crypto"
 	"sort"
@@ -113,4 +114,25 @@ func (events SortedUserEvent) Less(i, j int) bool {
 
 func (events SortedUserEvent) Swap(i, j int) {
 	events[i], events[j] = events[j], events[i]
+}
+
+func FromBytesToUserEvent(data []byte) IUserEvent {
+	m := make(map[string]interface{})
+	err := json.Unmarshal(data, &m)
+	if err != nil {
+		return nil
+	}
+	if eventType, exist := m["EventType"]; exist {
+		switch eventType {
+		case TYPE_USEREVENT_PUBLIC_TOKEN:
+			tokenIssue, err := FromBytes2TokenIssue(data)
+			if err != nil {
+				return nil
+			}
+			return tokenIssue
+		case TYPE_USEREVENT_TRANSACTION:
+			return FromBytesToTransaction(data)
+		}
+	}
+	return nil
 }

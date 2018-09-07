@@ -97,10 +97,10 @@ func GetTransaction(txId []byte) *Transaction {
 	if err != nil {
 		return nil
 	}
-	return FromBytes(txData)
+	return FromBytesToTransaction(txData)
 }
 
-func FromBytes(data []byte) *Transaction {
+func FromBytesToTransaction(data []byte) *Transaction {
 	var tx Transaction
 	err := json.Unmarshal(data, &tx)
 	if err != nil {

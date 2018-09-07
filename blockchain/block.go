@@ -96,6 +96,36 @@ func (block Block) ExistAddress(address []byte) bool {
 	return block.StatTree.ContainsKey(address)
 }
 
+func GenesisBlock(accounts []types.Account) *Block {
+	block := &Block{
+		Height:       0,
+		Nonce:        0,
+		Fee:          BackboneChainFee,
+		TotalFee:     0,
+		PreviousHash: nil,
+		CurrentHash:  nil,
+		BlockBody:    NewBlockBody(),
+		Body:         nil,
+		Timestamp:    0,
+		Locker:       sync.RWMutex{},
+		StatTree:     MPTPlus.NewMTP(db.GetDBInst()),
+		StatRoot:     nil,
+		TxTree:       MPTPlus.NewMTP(db.GetDBInst()),
+		TxRoot:       nil,
+		TokenTree:    MPTPlus.NewMTP(db.GetDBInst()),
+		TokenRoot:    nil,
+	}
+
+	for _, account := range accounts {
+		block.CreateGenesisAccount(account)
+	}
+
+	block.UpdateMPTPlusRoot()
+	block.CaculateHash()
+
+	return block
+}
+
 func (block *Block) CreateGenesisAccount(account types.Account) bool {
 	err := block.StatTree.MustInsert(account.Address, account.ToBytes())
 	if err != nil {

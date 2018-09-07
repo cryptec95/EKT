@@ -28,11 +28,8 @@ const (
 	BackboneConsensus     = i_consensus.DBFT
 	BackboneBlockInterval = 3 * time.Second
 	BackboneChainFee      = 510000
-)
-
-const (
-	InitStatus      = 0
-	StartPackStatus = 100
+	InitStatus            = 0
+	StartPackStatus       = 100
 )
 
 type BlockChain struct {
@@ -43,25 +40,17 @@ type BlockChain struct {
 	currentHeight int64
 	Locker        sync.RWMutex
 	Status        int
-	Fee           int64
-	Difficulty    []byte
 	Pool          *pool.TxPool
 	BlockInterval time.Duration
 	PackLock      sync.RWMutex
 }
 
-func NewBlockChain(chainId int64, consensusType i_consensus.ConsensusType, fee int64, difficulty []byte, interval time.Duration) *BlockChain {
+func NewBlockChain() *BlockChain {
 	return &BlockChain{
-		ChainId:       chainId,
-		Consensus:     consensusType,
 		Locker:        sync.RWMutex{},
 		currentLocker: sync.RWMutex{},
 		Status:        InitStatus, // 100 正在计算MTProot, 150停止计算root,开始计算block Hash
-		Fee:           fee,
-		Difficulty:    difficulty,
 		Pool:          pool.NewTxPool(),
-		currentHeight: 0,
-		BlockInterval: interval,
 		PackLock:      sync.RWMutex{},
 	}
 }
@@ -72,11 +61,11 @@ func (chain *BlockChain) GetLastBlock() Block {
 	return chain.currentBlock
 }
 
-func (chain *BlockChain) SetLastBlock(block *Block) {
+func (chain *BlockChain) SetLastBlock(block Block) {
 	chain.currentLocker.Lock()
 	defer chain.currentLocker.Unlock()
 	block.RecoverMPT()
-	chain.currentBlock = *block
+	chain.currentBlock = block
 	chain.currentHeight = block.Height
 }
 
@@ -137,7 +126,7 @@ func (chain *BlockChain) SaveBlock(block Block) {
 		db.GetDBInst().Set(block.Hash(), block.Data())
 		db.GetDBInst().Set(chain.GetBlockByHeightKey(block.Height), block.Bytes())
 		db.GetDBInst().Set(chain.CurrentBlockKey(), block.Bytes())
-		chain.SetLastBlock(&block)
+		chain.SetLastBlock(block)
 	}
 }
 
@@ -174,7 +163,7 @@ func (chain *BlockChain) WaitAndPack(ctxLog *ctxlog.ContextLog) *Block {
 	eventTimeout := time.After(chain.PackTime())
 	block := NewBlock(chain.GetLastBlock())
 	if block.Fee <= 0 {
-		block.Fee = chain.Fee
+		block.Fee = BackboneChainFee
 	}
 
 	start := time.Now().UnixNano()
