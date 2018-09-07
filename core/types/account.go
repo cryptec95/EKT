@@ -7,10 +7,6 @@ import (
 	"github.com/EducationEKT/EKT/crypto"
 )
 
-const (
-	Default_Crypto_Method = "secp256k1"
-)
-
 type Account struct {
 	Address  HexBytes         `json:"address"`
 	Amount   int64            `json:"amount"`
