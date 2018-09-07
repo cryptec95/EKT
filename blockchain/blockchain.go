@@ -163,7 +163,7 @@ func (chain *BlockChain) WaitAndPack(ctxLog *ctxlog.ContextLog) *Block {
 	eventTimeout := time.After(chain.PackTime())
 	block := NewBlock(chain.GetLastBlock())
 	if block.Fee <= 0 {
-		block.Fee = chain.Fee
+		block.Fee = BackboneChainFee
 	}
 
 	start := time.Now().UnixNano()
