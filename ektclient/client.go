@@ -80,20 +80,19 @@ func (client Client) GetVotesByBlockHash(hash string) blockchain.Votes {
 
 func (client Client) GetEventIds(hash []byte) []string {
 	for _, peer := range client.peers {
-		url := util.StringJoint("http://", peer.Address, ":", strconv.Itoa(int(peer.Port)), "/db/api/get")
-		body, err := util.HttpPost(url, hash)
+		url := util.StringJoint("http://", peer.Address, ":", strconv.Itoa(int(peer.Port)), "/db/api/getByHex?hash=", hex.EncodeToString(hash))
+		body, err := util.HttpGet(url)
 		if err != nil {
 			continue
 		}
 		if !bytes.EqualFold(crypto.Sha3_256(body), hash) {
 			continue
 		}
-		var eventIds []string
-		err = json.Unmarshal(body, &eventIds)
+		blockBody, err := blockchain.FromBytes2BLockBody(body)
 		if err != nil {
-			continue
+			return nil
 		}
-		return eventIds
+		return blockBody.Events
 	}
 	return nil
 }
