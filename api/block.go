@@ -24,7 +24,7 @@ func init() {
 }
 
 func lastBlock(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
-	block := blockchain_manager.GetMainChain().GetLastBlock()
+	block := blockchain_manager.GetMainChain().LastBlock()
 	return x_resp.Return(block, nil)
 }
 
@@ -34,7 +34,11 @@ func blockByHeight(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
 	if bc.GetLastHeight() < height {
 		return nil, x_err.New(-404, fmt.Sprintf("Heigth %d is heigher than current height, current height is %d \n ", height, bc.GetLastHeight()))
 	}
-	return x_resp.Return(bc.GetBlockByHeight(height))
+	block := bc.GetBlockByHeight(height)
+	if block == nil {
+		return x_resp.Fail(-1, "not found", nil), nil
+	}
+	return x_resp.Success(block), nil
 }
 
 func newBlock(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {

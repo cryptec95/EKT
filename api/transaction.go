@@ -28,7 +28,7 @@ func init() {
 }
 
 func fee(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
-	return x_resp.Return(blockchain_manager.GetMainChain().GetLastBlock().Fee, nil)
+	return x_resp.Return(blockchain_manager.GetMainChain().LastBlock().Fee, nil)
 }
 
 func queueTxs(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
@@ -57,7 +57,7 @@ func txStatus(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
 	}
 
 	// get account by address
-	account, err := blockchain_manager.GetMainChain().GetLastBlock().GetAccount(tx.GetFrom())
+	account, err := blockchain_manager.GetMainChain().LastBlock().GetAccount(tx.GetFrom())
 	if err != nil {
 		return x_resp.Return(nil, err)
 	}
