@@ -14,7 +14,6 @@ import (
 	"github.com/EducationEKT/EKT/crypto"
 	"github.com/EducationEKT/EKT/ctxlog"
 	"github.com/EducationEKT/EKT/db"
-	"github.com/EducationEKT/EKT/i_consensus"
 	"github.com/EducationEKT/EKT/log"
 	"github.com/EducationEKT/EKT/param"
 	"github.com/EducationEKT/EKT/pool"
@@ -25,7 +24,6 @@ import (
 var BackboneChainId int64 = 1
 
 const (
-	BackboneConsensus     = i_consensus.DBFT
 	BackboneBlockInterval = 3 * time.Second
 	BackboneChainFee      = 510000
 	InitStatus            = 0
@@ -34,7 +32,6 @@ const (
 
 type BlockChain struct {
 	ChainId       int64
-	Consensus     i_consensus.ConsensusType
 	currentLocker sync.RWMutex
 	currentBlock  Block
 	currentHeight int64
