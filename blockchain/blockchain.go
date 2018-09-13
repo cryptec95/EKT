@@ -6,8 +6,6 @@ import (
 	"sync"
 	"time"
 
-	"errors"
-
 	"encoding/hex"
 	"github.com/EducationEKT/EKT/conf"
 	"github.com/EducationEKT/EKT/core/userevent"
@@ -38,7 +36,6 @@ type BlockChain struct {
 	Locker        sync.RWMutex
 	Status        int
 	Pool          *pool.TxPool
-	BlockInterval time.Duration
 	PackLock      sync.RWMutex
 }
 
@@ -52,7 +49,7 @@ func NewBlockChain() *BlockChain {
 	}
 }
 
-func (chain *BlockChain) GetLastBlock() Block {
+func (chain *BlockChain) LastBlock() Block {
 	chain.currentLocker.RLock()
 	defer chain.currentLocker.RUnlock()
 	return chain.currentBlock
@@ -82,7 +79,7 @@ func (chain *BlockChain) PackSignal(ctxLog *ctxlog.ContextLog, height int64) *Bl
 			}
 			chain.Status = InitStatus
 		}()
-		log.Debug("Start pack block at height %d .\n", chain.GetLastHeight()+1)
+		log.Debug("StartNode pack block at height %d .\n", chain.GetLastHeight()+1)
 
 		block := chain.WaitAndPack(ctxLog)
 
@@ -91,23 +88,36 @@ func (chain *BlockChain) PackSignal(ctxLog *ctxlog.ContextLog, height int64) *Bl
 	return nil
 }
 
-func (chain *BlockChain) GetBlockByHeight(height int64) (*Block, error) {
+func (chain *BlockChain) GetBlockByHash(hash []byte) *Block {
+	db := db.GetDBInst()
+	data, err := db.Get(hash)
+	if err != nil {
+		return nil
+	}
+	block, err := FromBytes2Block(data)
+	if err != nil {
+		return nil
+	}
+	return block
+}
+
+func (chain *BlockChain) GetBlockByHeight(height int64) *Block {
 	if height > chain.GetLastHeight() {
-		return nil, errors.New("Invalid height")
+		return nil
 	}
 	key := chain.GetBlockByHeightKey(height)
 	data, err := db.GetDBInst().Get(key)
 	if err != nil {
-		return nil, err
+		return nil
 	}
 	if len(data) == 0 {
-		return nil, errors.New("Too heigher.")
+		return nil
 	}
 	block, err := FromBytes2Block(data)
 	if block.Height != height {
-		return nil, errors.New("Can not get block from db.")
+		return nil
 	}
-	return block, err
+	return block
 }
 
 func (chain *BlockChain) GetBlockByHeightKey(height int64) []byte {
@@ -127,7 +137,7 @@ func (chain *BlockChain) SaveBlock(block Block) {
 	}
 }
 
-func (chain *BlockChain) LastBlock() (*Block, error) {
+func (chain *BlockChain) LastBlockFromDB() (*Block, error) {
 	var err error = nil
 	var block *Block
 	if currentBlock == nil {
@@ -151,14 +161,14 @@ func (chain *BlockChain) CurrentBlockKey() []byte {
 }
 
 func (chain *BlockChain) PackTime() time.Duration {
-	lastBlock := chain.GetLastBlock()
+	lastBlock := chain.LastBlock()
 	d := time.Now().UnixNano() - lastBlock.Timestamp*1e6
-	return time.Duration(int64(chain.BlockInterval)-d) / 2
+	return time.Duration(int64(BackboneBlockInterval)-d) / 2
 }
 
 func (chain *BlockChain) WaitAndPack(ctxLog *ctxlog.ContextLog) *Block {
 	eventTimeout := time.After(chain.PackTime())
-	block := NewBlock(chain.GetLastBlock())
+	block := NewBlock(chain.LastBlock())
 	if block.Fee <= 0 {
 		block.Fee = BackboneChainFee
 	}
@@ -226,7 +236,7 @@ func (chain *BlockChain) WaitAndPack(ctxLog *ctxlog.ContextLog) *Block {
 		}
 	} else {
 		// 判断是否需要进入下一个round
-		block.Round = chain.GetLastBlock().Round
+		block.Round = chain.LastBlock().Round
 		block.Round.CurrentIndex = block.Round.MyIndex()
 	}
 
@@ -249,7 +259,7 @@ func (chain *BlockChain) NotifyPool(block Block) {
 }
 
 func (chain *BlockChain) NewUserEvent(event userevent.IUserEvent) bool {
-	block := chain.GetLastBlock()
+	block := chain.LastBlock()
 	account, err := block.GetAccount(event.GetFrom())
 	if err != nil {
 		return false
@@ -266,7 +276,7 @@ func (chain *BlockChain) NewUserEvent(event userevent.IUserEvent) bool {
 }
 
 func (chain *BlockChain) NewTransaction(tx *userevent.Transaction) bool {
-	block := chain.GetLastBlock()
+	block := chain.LastBlock()
 	account, err := block.GetAccount(tx.GetFrom())
 	if err != nil {
 		return false
@@ -283,7 +293,7 @@ func (chain *BlockChain) NewTransaction(tx *userevent.Transaction) bool {
 }
 
 func (chain *BlockChain) ValidateNextBlock(ctxlog *ctxlog.ContextLog, block Block, events []userevent.IUserEvent) bool {
-	if !chain.GetLastBlock().ValidateNextBlock(block, events) {
+	if !chain.LastBlock().ValidateNextBlock(block, events) {
 		ctxlog.Log("Validate", false)
 		return false
 	}

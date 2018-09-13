@@ -20,24 +20,25 @@ import (
 var currentBlock *Block = nil
 
 type Block struct {
-	Height       int64          `json:"height"`
-	Timestamp    int64          `json:"timestamp"`
-	Nonce        int64          `json:"nonce"`
-	Fee          int64          `json:"fee"`
-	TotalFee     int64          `json:"totalFee"`
-	PreviousHash types.HexBytes `json:"previousHash"`
-	CurrentHash  types.HexBytes `json:"currentHash"`
-	Signature    types.HexBytes `json:"signature"`
-	BlockBody    *BlockBody     `json:"-"`
-	Body         types.HexBytes `json:"body"`
-	Round        *round.Round   `json:"round"`
-	Locker       sync.RWMutex   `json:"-"`
-	StatTree     *MPTPlus.MTP   `json:"-"`
-	StatRoot     types.HexBytes `json:"statRoot"`
-	TxTree       *MPTPlus.MTP   `json:"-"`
-	TxRoot       types.HexBytes `json:"txRoot"`
-	TokenTree    *MPTPlus.MTP   `json:"-"`
-	TokenRoot    types.HexBytes `json:"tokenRoot"`
+	Height       int64          `json: "height"`
+	Timestamp    int64          `json: "timestamp"`
+	Nonce        int64          `json: "nonce"`
+	Fee          int64          `json: "fee"`
+	TotalFee     int64          `json: "totalFee"`
+	PreviousHash types.HexBytes `json: "previousHash"`
+	CurrentHash  types.HexBytes `json: "currentHash"`
+	Signature    types.HexBytes `json: "signature"`
+	BlockBody    *BlockBody     `json: "-"`
+	Body         types.HexBytes `json: "body"`
+	Coinbase     types.HexBytes `json: "miner"`
+	Round        *round.Round   `json: "round"`
+	Locker       sync.RWMutex   `json: "-"`
+	StatTree     *MPTPlus.MTP   `json: "-"`
+	StatRoot     types.HexBytes `json: "statRoot"`
+	TxTree       *MPTPlus.MTP   `json: "-"`
+	TxRoot       types.HexBytes `json: "txRoot"`
+	TokenTree    *MPTPlus.MTP   `json: "-"`
+	TokenRoot    types.HexBytes `json: "tokenRoot"`
 }
 
 func (block Block) GetRound() *round.Round {
