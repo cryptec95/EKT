@@ -1,4 +1,4 @@
-package mode
+package node
 
 import (
 	"bytes"
@@ -16,15 +16,15 @@ import (
 	"time"
 )
 
-type FullSyncNode struct {
+type FullNode struct {
 	config     conf.EKTConf
 	blockchain *blockchain.BlockChain
 	consensus  i_consensus.Consensus
 	client     ektclient.IClient
 }
 
-func NewFullSyncMode(config conf.EKTConf) *FullSyncNode {
-	return &FullSyncNode{
+func NewFullMode(config conf.EKTConf) *FullNode {
+	return &FullNode{
 		config:     config,
 		blockchain: blockchain.NewBlockChain(),
 		consensus:  consensus.NewBasicConsensus(),
@@ -32,30 +32,30 @@ func NewFullSyncMode(config conf.EKTConf) *FullSyncNode {
 	}
 }
 
-func (fullNode FullSyncNode) StartNode() {
-	blockchain_manager.MainBlockChain = fullNode.blockchain
+func (node FullNode) StartNode() {
+	blockchain_manager.MainBlockChain = node.blockchain
 	fmt.Println("Start full sync node")
-	fullNode.recoverFromDB()
-	fullNode.loop()
+	node.recoverFromDB()
+	node.loop()
 }
 
-func (fullNode FullSyncNode) recoverFromDB() {
-	block, err := fullNode.blockchain.LastBlockFromDB()
+func (node FullNode) recoverFromDB() {
+	block, err := node.blockchain.LastBlockFromDB()
 	if err != nil || block == nil {
 		// 将创世块写入数据库
-		accounts := fullNode.config.GenesisBlockAccounts
+		accounts := node.config.GenesisBlockAccounts
 		block = blockchain.GenesisBlock(accounts)
-		fullNode.blockchain.SaveBlock(*block)
+		node.blockchain.SaveBlock(*block)
 	} else {
-		fullNode.blockchain.SetLastBlock(*block)
+		node.blockchain.SetLastBlock(*block)
 	}
 	log.Info("Recovered from local database.")
 }
 
-func (fullNode FullSyncNode) loop() {
+func (node FullNode) loop() {
 	fail, failTime := false, 0
 
-	for height := fullNode.blockchain.GetLastHeight() + 1; ; {
+	for height := node.blockchain.GetLastHeight() + 1; ; {
 		if fail {
 			if failTime >= 3 {
 				time.Sleep(blockchain.BackboneBlockInterval)
@@ -64,21 +64,21 @@ func (fullNode FullSyncNode) loop() {
 			}
 		}
 
-		if block := fullNode.client.GetBlockByHeight(height); block != nil {
+		if block := node.client.GetBlockByHeight(height); block != nil {
 			hash := block.CurrentHash
 			if !bytes.EqualFold(hash, block.CaculateHash()) {
 				fail, failTime = true, failTime+1
 				continue
 			}
 
-			votes := fullNode.client.GetVotesByBlockHash(hex.EncodeToString(block.CaculateHash()))
+			votes := node.client.GetVotesByBlockHash(hex.EncodeToString(block.CaculateHash()))
 			if votes.Validate() {
-				lastBlock := fullNode.blockchain.LastBlock()
-				eventIds := fullNode.client.GetEventIds(block.Body)
+				lastBlock := node.blockchain.LastBlock()
+				eventIds := node.client.GetEventIds(block.Body)
 				if len(eventIds) == 0 && !bytes.EqualFold(block.Body, hexutil.MustDecode("0xa3284248847e7ff1ac740635e292f219ea7f943a22ebdd733d2af173820bc291")) {
 					continue
 				}
-				events, err := fullNode.client.GetEvents(eventIds)
+				events, err := node.client.GetEvents(eventIds)
 				if err != nil {
 					fail, failTime = true, failTime+1
 					continue
@@ -88,7 +88,7 @@ func (fullNode FullSyncNode) loop() {
 					fail, failTime = false, 0
 					height++
 					SaveVotes(votes)
-					fullNode.blockchain.SaveBlock(*block)
+					node.blockchain.SaveBlock(*block)
 				} else {
 					fail, failTime = true, failTime+1
 				}

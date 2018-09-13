@@ -1,4 +1,4 @@
-package mode
+package node
 
 import (
 	"encoding/hex"
