@@ -18,7 +18,11 @@ import (
 )
 
 func init() {
-	x_router.All("/token/api/issue", broadcastTokenIssue, issueToken)
+	x_router.All("/token/api/issue", tokenIssue)
+}
+
+func tokenIssue(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
+	return x_resp.Fail(-1, "not open", nil), nil
 }
 
 func issueToken(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
