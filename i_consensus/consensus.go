@@ -1,14 +1,11 @@
 package i_consensus
 
-const (
-	DBFT = 1
-	POW  = 2
-	POS  = 3
+import (
+	"github.com/EducationEKT/EKT/blockchain"
+	"github.com/EducationEKT/EKT/core/userevent"
 )
 
-type ConsensusType int
-
 type Consensus interface {
-	//接口中没有声明，但是在Consensus的所有的实现struct中都必须拥有blockchain结构体
-	Run()
+	// 验证是否可以写入区跨链中
+	VerifyHeader(block blockchain.Block, reader blockchain.ChainReader, events []userevent.IUserEvent) bool
 }

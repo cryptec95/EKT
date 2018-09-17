@@ -20,24 +20,25 @@ import (
 var currentBlock *Block = nil
 
 type Block struct {
-	Height       int64          `json:"height"`
-	Timestamp    int64          `json:"timestamp"`
-	Nonce        int64          `json:"nonce"`
-	Fee          int64          `json:"fee"`
-	TotalFee     int64          `json:"totalFee"`
-	PreviousHash types.HexBytes `json:"previousHash"`
-	CurrentHash  types.HexBytes `json:"currentHash"`
-	Signature    types.HexBytes `json:"signature"`
-	BlockBody    *BlockBody     `json:"-"`
-	Body         types.HexBytes `json:"body"`
-	Round        *round.Round   `json:"round"`
-	Locker       sync.RWMutex   `json:"-"`
-	StatTree     *MPTPlus.MTP   `json:"-"`
-	StatRoot     types.HexBytes `json:"statRoot"`
-	TxTree       *MPTPlus.MTP   `json:"-"`
-	TxRoot       types.HexBytes `json:"txRoot"`
-	TokenTree    *MPTPlus.MTP   `json:"-"`
-	TokenRoot    types.HexBytes `json:"tokenRoot"`
+	Height       int64          `json: "height"`
+	Timestamp    int64          `json: "timestamp"`
+	Nonce        int64          `json: "nonce"`
+	Fee          int64          `json: "fee"`
+	TotalFee     int64          `json: "totalFee"`
+	PreviousHash types.HexBytes `json: "previousHash"`
+	CurrentHash  types.HexBytes `json: "currentHash"`
+	Signature    types.HexBytes `json: "signature"`
+	BlockBody    *BlockBody     `json: "-"`
+	Body         types.HexBytes `json: "body"`
+	Coinbase     types.HexBytes `json: "miner"`
+	Round        *round.Round   `json: "round"`
+	Locker       sync.RWMutex   `json: "-"`
+	StatTree     *MPTPlus.MTP   `json: "-"`
+	StatRoot     types.HexBytes `json: "statRoot"`
+	TxTree       *MPTPlus.MTP   `json: "-"`
+	TxRoot       types.HexBytes `json: "txRoot"`
+	TokenTree    *MPTPlus.MTP   `json: "-"`
+	TokenRoot    types.HexBytes `json: "tokenRoot"`
 }
 
 func (block Block) GetRound() *round.Round {
@@ -94,6 +95,36 @@ func (block Block) GetAccount(address []byte) (*types.Account, error) {
 
 func (block Block) ExistAddress(address []byte) bool {
 	return block.StatTree.ContainsKey(address)
+}
+
+func GenesisBlock(accounts []types.Account) *Block {
+	block := &Block{
+		Height:       0,
+		Nonce:        0,
+		Fee:          BackboneChainFee,
+		TotalFee:     0,
+		PreviousHash: nil,
+		CurrentHash:  nil,
+		BlockBody:    NewBlockBody(),
+		Body:         nil,
+		Timestamp:    0,
+		Locker:       sync.RWMutex{},
+		StatTree:     MPTPlus.NewMTP(db.GetDBInst()),
+		StatRoot:     nil,
+		TxTree:       MPTPlus.NewMTP(db.GetDBInst()),
+		TxRoot:       nil,
+		TokenTree:    MPTPlus.NewMTP(db.GetDBInst()),
+		TokenRoot:    nil,
+	}
+
+	for _, account := range accounts {
+		block.CreateGenesisAccount(account)
+	}
+
+	block.UpdateMPTPlusRoot()
+	block.CaculateHash()
+
+	return block
 }
 
 func (block *Block) CreateGenesisAccount(account types.Account) bool {
