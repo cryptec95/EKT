@@ -1,7 +1,10 @@
 package api
 
 import (
-	"github.com/EducationEKT/EKT/blockchain_manager"
+	"fmt"
+	"github.com/EducationEKT/EKT/conf"
+	"github.com/EducationEKT/EKT/param"
+	"github.com/EducationEKT/EKT/util"
 
 	"github.com/EducationEKT/xserver/x_err"
 	"github.com/EducationEKT/xserver/x_http/x_req"
@@ -15,7 +18,7 @@ func init() {
 }
 
 func delegatePeers(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
-	peers := blockchain_manager.MainBlockChain.GetLastBlock().GetRound().Peers
+	peers := param.MainChainDelegateNode
 	return x_resp.Success(peers), x_err.NewXErr(nil)
 }
 
@@ -25,4 +28,16 @@ func ping(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
 		Body:     []byte("pong"),
 	}
 	return resp, nil
+}
+
+func broadcast(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
+	if len(req.Query) == 0 {
+		for _, peer := range param.MainChainDelegateNode {
+			if !peer.Equal(conf.EKTConfig.Node) {
+				url := fmt.Sprintf(`http://%s:%d%s?broadcast=true`, peer.Address, peer.Port, req.Path)
+				util.HttpPost(url, req.Body)
+			}
+		}
+	}
+	return nil, nil
 }

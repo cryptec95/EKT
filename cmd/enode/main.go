@@ -5,15 +5,15 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"runtime"
 
 	_ "github.com/EducationEKT/EKT/api"
+
 	"github.com/EducationEKT/EKT/blockchain_manager"
 	"github.com/EducationEKT/EKT/conf"
 	"github.com/EducationEKT/EKT/db"
 	"github.com/EducationEKT/EKT/log"
 	"github.com/EducationEKT/EKT/param"
-
-	"runtime"
 
 	"github.com/EducationEKT/xserver/x_http"
 )
@@ -27,10 +27,12 @@ func init() {
 	var (
 		help bool
 		ver  bool
+		m    string
 		cfg  string
 	)
 	flag.BoolVar(&help, "h", false, "this help")
 	flag.BoolVar(&ver, "v", false, "show version and exit")
+	flag.StringVar(&m, "m", "full", "specific node node: full sync OR fast sync OR delegate")
 	flag.StringVar(&cfg, "c", "genesis.json", "set genesis.json file and start")
 	flag.Parse()
 
@@ -49,6 +51,9 @@ func init() {
 		fmt.Printf("Init service failed, %v \n", err)
 		os.Exit(-1)
 	}
+
+	blockchain_manager.Init(m)
+
 	http.HandleFunc("/", x_http.Service)
 }
 
@@ -87,9 +92,6 @@ func InitService(confPath string) error {
 
 	// 初始化委托人节点
 	param.InitBootNodes()
-
-	// 启动多链
-	blockchain_manager.Init()
 
 	return nil
 }

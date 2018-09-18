@@ -1,82 +1,57 @@
 package blockchain
 
 import (
-	"encoding/json"
-	"fmt"
 	"sync"
 	"time"
-
-	"errors"
 
 	"encoding/hex"
 	"github.com/EducationEKT/EKT/conf"
 	"github.com/EducationEKT/EKT/core/userevent"
-	"github.com/EducationEKT/EKT/crypto"
 	"github.com/EducationEKT/EKT/ctxlog"
-	"github.com/EducationEKT/EKT/db"
-	"github.com/EducationEKT/EKT/i_consensus"
 	"github.com/EducationEKT/EKT/log"
-	"github.com/EducationEKT/EKT/param"
 	"github.com/EducationEKT/EKT/pool"
-	"github.com/EducationEKT/EKT/round"
-	"os"
 )
 
 var BackboneChainId int64 = 1
 
 const (
-	BackboneConsensus     = i_consensus.DBFT
 	BackboneBlockInterval = 3 * time.Second
 	BackboneChainFee      = 510000
-)
-
-const (
-	InitStatus      = 0
-	StartPackStatus = 100
+	InitStatus            = 0
+	StartPackStatus       = 100
 )
 
 type BlockChain struct {
 	ChainId       int64
-	Consensus     i_consensus.ConsensusType
 	currentLocker sync.RWMutex
-	currentBlock  Block
+	currentBlock  Header
 	currentHeight int64
 	Locker        sync.RWMutex
 	Status        int
-	Fee           int64
-	Difficulty    []byte
 	Pool          *pool.TxPool
-	BlockInterval time.Duration
 	PackLock      sync.RWMutex
 }
 
-func NewBlockChain(chainId int64, consensusType i_consensus.ConsensusType, fee int64, difficulty []byte, interval time.Duration) *BlockChain {
+func NewBlockChain() *BlockChain {
 	return &BlockChain{
-		ChainId:       chainId,
-		Consensus:     consensusType,
 		Locker:        sync.RWMutex{},
 		currentLocker: sync.RWMutex{},
 		Status:        InitStatus, // 100 正在计算MTProot, 150停止计算root,开始计算block Hash
-		Fee:           fee,
-		Difficulty:    difficulty,
 		Pool:          pool.NewTxPool(),
-		currentHeight: 0,
-		BlockInterval: interval,
 		PackLock:      sync.RWMutex{},
 	}
 }
 
-func (chain *BlockChain) GetLastBlock() Block {
+func (chain *BlockChain) LastBlock() Header {
 	chain.currentLocker.RLock()
 	defer chain.currentLocker.RUnlock()
 	return chain.currentBlock
 }
 
-func (chain *BlockChain) SetLastBlock(block *Block) {
+func (chain *BlockChain) SetLastBlock(block Header) {
 	chain.currentLocker.Lock()
 	defer chain.currentLocker.Unlock()
-	block.RecoverMPT()
-	chain.currentBlock = *block
+	chain.currentBlock = block
 	chain.currentHeight = block.Height
 }
 
@@ -86,17 +61,17 @@ func (chain *BlockChain) GetLastHeight() int64 {
 	return chain.currentHeight
 }
 
-func (chain *BlockChain) PackSignal(ctxLog *ctxlog.ContextLog, height int64) *Block {
+func (chain *BlockChain) PackSignal(ctxLog *ctxlog.ContextLog, height int64) *Header {
 	chain.PackLock.Lock()
 	defer chain.PackLock.Unlock()
 	if chain.Status != StartPackStatus {
 		defer func() {
 			if r := recover(); r != nil {
-				log.Crit("Panic while pack. %v", r)
+				log.PrintStack("blockchain.PackSignal")
 			}
 			chain.Status = InitStatus
 		}()
-		log.Debug("Start pack block at height %d .\n", chain.GetLastHeight()+1)
+		log.Debug("StartNode pack block at height %d .\n", chain.GetLastHeight()+1)
 
 		block := chain.WaitAndPack(ctxLog)
 
@@ -105,77 +80,17 @@ func (chain *BlockChain) PackSignal(ctxLog *ctxlog.ContextLog, height int64) *Bl
 	return nil
 }
 
-func (chain *BlockChain) GetBlockByHeight(height int64) (*Block, error) {
-	if height > chain.GetLastHeight() {
-		return nil, errors.New("Invalid height")
-	}
-	key := chain.GetBlockByHeightKey(height)
-	data, err := db.GetDBInst().Get(key)
-	if err != nil {
-		return nil, err
-	}
-	if len(data) == 0 {
-		return nil, errors.New("Too heigher.")
-	}
-	block, err := FromBytes2Block(data)
-	if block.Height != height {
-		return nil, errors.New("Can not get block from db.")
-	}
-	return block, err
-}
-
-func (chain *BlockChain) GetBlockByHeightKey(height int64) []byte {
-	return []byte(fmt.Sprint(`GetBlockByHeight: _%d_%d`, chain.ChainId, height))
-}
-
-func (chain *BlockChain) SaveBlock(block Block) {
-	chain.Locker.Lock()
-	defer chain.Locker.Unlock()
-
-	if chain.GetLastHeight()+1 == block.Height || block.Height == 0 {
-		log.Info("Saving block %s to database.", string(block.Bytes()))
-		db.GetDBInst().Set(block.Hash(), block.Data())
-		db.GetDBInst().Set(chain.GetBlockByHeightKey(block.Height), block.Bytes())
-		db.GetDBInst().Set(chain.CurrentBlockKey(), block.Bytes())
-		chain.SetLastBlock(&block)
-	}
-}
-
-func (chain *BlockChain) LastBlock() (*Block, error) {
-	var err error = nil
-	var block *Block
-	if currentBlock == nil {
-		key := chain.CurrentBlockKey()
-		data, err := db.GetDBInst().Get(key)
-		if err != nil {
-			return nil, err
-		}
-		err = json.Unmarshal(data, &block)
-		if err != nil {
-			return nil, err
-		}
-		currentBlock = block
-		return block, err
-	}
-	return currentBlock, err
-}
-
-func (chain *BlockChain) CurrentBlockKey() []byte {
-	return []byte(fmt.Sprintf("CurrentBlockKey_%d", chain.ChainId))
-}
-
 func (chain *BlockChain) PackTime() time.Duration {
-	lastBlock := chain.GetLastBlock()
+	lastBlock := chain.LastBlock()
 	d := time.Now().UnixNano() - lastBlock.Timestamp*1e6
-	return time.Duration(int64(chain.BlockInterval)-d) / 2
+	return time.Duration(int64(BackboneBlockInterval)-d) / 2
 }
 
-func (chain *BlockChain) WaitAndPack(ctxLog *ctxlog.ContextLog) *Block {
+func (chain *BlockChain) WaitAndPack(ctxLog *ctxlog.ContextLog) *Header {
 	eventTimeout := time.After(chain.PackTime())
-	block := NewBlock(chain.GetLastBlock())
-	if block.Fee <= 0 {
-		block.Fee = chain.Fee
-	}
+	lastBlock := chain.LastBlock()
+	coinbase, _ := hex.DecodeString(conf.EKTConfig.Node.Account)
+	block := NewHeader(lastBlock, lastBlock.CaculateHash(), coinbase)
 
 	start := time.Now().UnixNano()
 	started := false
@@ -201,7 +116,7 @@ func (chain *BlockChain) WaitAndPack(ctxLog *ctxlog.ContextLog) *Block {
 						tx, ok := event.(*userevent.Transaction)
 						if ok {
 							numTx++
-							block.NewTransaction(*tx, tx.Fee)
+							block.NewTransaction(*tx)
 						}
 					case userevent.TYPE_USEREVENT_PUBLIC_TOKEN:
 						issueToken, ok := event.(*userevent.TokenIssue)
@@ -210,8 +125,6 @@ func (chain *BlockChain) WaitAndPack(ctxLog *ctxlog.ContextLog) *Block {
 							block.IssueToken(*issueToken)
 						}
 					}
-
-					block.BlockBody.AddEvent(event)
 				}
 			}
 		}
@@ -220,50 +133,25 @@ func (chain *BlockChain) WaitAndPack(ctxLog *ctxlog.ContextLog) *Block {
 		}
 	}
 
-	address, err := hex.DecodeString(conf.EKTConfig.Node.Account)
-	if err != nil {
-		log.Crit("Invalid config")
-		os.Exit(-1)
-	}
-	block.UpdateMiner(address)
+	block.UpdateMiner()
 
 	end := time.Now().UnixNano()
 	log.Debug("Total tx: %d, Total time: %d ns, TPS: %d. \n", numTx, end-start, numTx*1e9/int(end-start))
 
-	chain.UpdateBody(block)
-	block.UpdateMPTPlusRoot()
-
-	if block.Round == nil {
-		block.Round = &round.Round{
-			Peers:        param.MainChainDelegateNode,
-			CurrentIndex: 0,
-		}
-	} else {
-		// 判断是否需要进入下一个round
-		block.Round = chain.GetLastBlock().Round
-		block.Round.CurrentIndex = block.Round.MyIndex()
-	}
-
 	return block
 }
 
-func (chain *BlockChain) UpdateBody(block *Block) {
-	bodyData := block.BlockBody.Bytes()
-	block.Body = crypto.Sha3_256(bodyData)
-	db.GetDBInst().Set(block.Body, bodyData)
-}
-
 // 当区块写入区块时，notify交易池，一些nonce比较大的交易可以进行打包
-func (chain *BlockChain) NotifyPool(block Block) {
-	if block.BlockBody == nil {
-		return
-	}
+func (chain *BlockChain) NotifyPool(block Header) {
+	//if block.BlockBody == nil {
+	//	return
+	//}
 
-	chain.Pool.Notify <- block.BlockBody.Events
+	//chain.Pool.Notify <- block.BlockBody.Events
 }
 
 func (chain *BlockChain) NewUserEvent(event userevent.IUserEvent) bool {
-	block := chain.GetLastBlock()
+	block := chain.LastBlock()
 	account, err := block.GetAccount(event.GetFrom())
 	if err != nil {
 		return false
@@ -280,7 +168,7 @@ func (chain *BlockChain) NewUserEvent(event userevent.IUserEvent) bool {
 }
 
 func (chain *BlockChain) NewTransaction(tx *userevent.Transaction) bool {
-	block := chain.GetLastBlock()
+	block := chain.LastBlock()
 	account, err := block.GetAccount(tx.GetFrom())
 	if err != nil {
 		return false
@@ -293,14 +181,5 @@ func (chain *BlockChain) NewTransaction(tx *userevent.Transaction) bool {
 	} else {
 		chain.Pool.SingleBlock <- tx
 	}
-	return true
-}
-
-func (chain *BlockChain) ValidateNextBlock(ctxlog *ctxlog.ContextLog, block Block, events []userevent.IUserEvent) bool {
-	if !chain.GetLastBlock().ValidateNextBlock(block, events) {
-		ctxlog.Log("Validate", false)
-		return false
-	}
-	ctxlog.Log("Validate", true)
 	return true
 }

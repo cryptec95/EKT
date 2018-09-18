@@ -5,7 +5,6 @@ import (
 	"io/ioutil"
 
 	"github.com/EducationEKT/EKT/core/types"
-	"github.com/EducationEKT/EKT/p2p"
 )
 
 type EKTConf struct {
@@ -13,7 +12,7 @@ type EKTConf struct {
 	DBPath               string          `json:"dbPath"`
 	LogPath              string          `json:"logPath"`
 	Debug                bool            `json:"debug"`
-	Node                 p2p.Peer        `json:"node"`
+	Node                 types.Peer      `json:"node"`
 	BlockchainManagePwd  string          `json:"blockchainManagePwd"`
 	GenesisBlockAccounts []types.Account `json:"genesisBlock"`
 	PrivateKey           types.HexBytes  `json:"privateKey"`

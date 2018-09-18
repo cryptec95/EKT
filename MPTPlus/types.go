@@ -1,6 +1,8 @@
 package MPTPlus
 
 import (
+	"encoding/hex"
+	"fmt"
 	"sort"
 	"sync"
 
@@ -34,6 +36,17 @@ type MTP struct {
 	Lock *sync.RWMutex
 	Root types.HexBytes
 	DB   db.IKVDatabase
+}
+
+func (mtp *MTP) UnmarshalJSON(data []byte) error {
+	data = data[:len(data)-1][1:]
+	bytes, err := hex.DecodeString(string(data))
+	mtp.Root = bytes
+	return err
+}
+
+func (mtp MTP) MarshalJSON() ([]byte, error) {
+	return []byte(fmt.Sprintf(`"%s"`, hex.EncodeToString(mtp.Root))), nil
 }
 
 func MTP_Tree(db db.IKVDatabase, root []byte) *MTP {

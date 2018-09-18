@@ -17,7 +17,7 @@ func NewTransaction(transaction *userevent.Transaction) error {
 		if err != nil {
 			return err
 		}
-		currentBlock := blockchain_manager.GetMainChain().GetLastBlock()
+		currentBlock := blockchain_manager.GetMainChain().LastBlock()
 		var token types.Token
 		err = currentBlock.TokenTree.GetInterfaceValue(tokenAddress, &token)
 		if err != nil || token.Name == "" || token.Decimals <= 0 || token.Total <= 0 {

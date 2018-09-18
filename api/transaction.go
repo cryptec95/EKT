@@ -1,18 +1,14 @@
 package api
 
 import (
+	"encoding/hex"
 	"encoding/json"
-	"fmt"
-	"github.com/EducationEKT/EKT/conf"
+	"github.com/EducationEKT/EKT/core/userevent"
 	"github.com/EducationEKT/EKT/crypto"
 	"github.com/EducationEKT/EKT/db"
 	"github.com/EducationEKT/EKT/dispatcher"
+	"github.com/EducationEKT/EKT/node"
 	"github.com/EducationEKT/EKT/param"
-	"github.com/EducationEKT/EKT/util"
-
-	"encoding/hex"
-	"github.com/EducationEKT/EKT/blockchain_manager"
-	"github.com/EducationEKT/EKT/core/userevent"
 	"github.com/EducationEKT/xserver/x_err"
 	"github.com/EducationEKT/xserver/x_http/x_req"
 	"github.com/EducationEKT/xserver/x_http/x_resp"
@@ -21,24 +17,24 @@ import (
 
 func init() {
 	x_router.Get("/transaction/api/fee", fee)
-	x_router.Post("/transaction/api/newTransaction", broadcastTx, newTransaction)
+	x_router.Post("/transaction/api/newTransaction", broadcast, newTransaction)
 	x_router.Get("/transaction/api/queueTxs", queueTxs)
 	x_router.Get("/transaction/api/blockTxs", blockTxs)
 	x_router.Get("/transaction/api/status", txStatus)
 }
 
 func fee(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
-	return x_resp.Return(blockchain_manager.GetMainChain().GetLastBlock().Fee, nil)
+	return x_resp.Return(node.SuggestFee(), nil)
 }
 
 func queueTxs(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
 	address := req.MustGetString("address")
-	return x_resp.Return(blockchain_manager.GetMainChain().Pool.GetReadyEvents(address), nil)
+	return x_resp.Return(node.GetMainChain().Pool.GetReadyEvents(address), nil)
 }
 
 func blockTxs(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
 	address := req.MustGetString("address")
-	return x_resp.Return(blockchain_manager.GetMainChain().Pool.GetBlockEvents(address), nil)
+	return x_resp.Return(node.GetMainChain().Pool.GetBlockEvents(address), nil)
 }
 
 func txStatus(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
@@ -57,7 +53,7 @@ func txStatus(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
 	}
 
 	// get account by address
-	account, err := blockchain_manager.GetMainChain().GetLastBlock().GetAccount(tx.GetFrom())
+	account, err := node.GetMainChain().LastBlock().GetAccount(tx.GetFrom())
 	if err != nil {
 		return x_resp.Return(nil, err)
 	}
@@ -86,18 +82,6 @@ func newTransaction(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
 		db.GetDBInst().Set(txId, tx.Bytes())
 	}
 	return x_resp.Return(tx.TransactionId(), err)
-}
-
-func broadcastTx(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
-	if len(req.Query) == 0 {
-		for _, peer := range param.MainChainDelegateNode {
-			if !peer.Equal(conf.EKTConfig.Node) {
-				url := fmt.Sprintf(`http://%s:%d/transaction/api/newTransaction?broadcast=true`, peer.Address, peer.Port)
-				util.HttpPost(url, req.Body)
-			}
-		}
-	}
-	return nil, nil
 }
 
 func synchronizeTransaction(txId []byte) {

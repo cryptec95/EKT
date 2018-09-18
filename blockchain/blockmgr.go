@@ -74,7 +74,7 @@ func (manager *BlockManager) SetVoteTime(height int64, time int64) {
 
 // 根据区块高度判断自己是否可以对此高度进行打包
 // 一个区块在1个interval内不可以对同一个高度的区块进行打包
-func (manager *BlockManager) GetBlockStatusByHeight(height, interval int64) bool {
+func (manager *BlockManager) CheckHeightInterval(height, interval int64) bool {
 	t, exist := manager.HeightManager.Load(height)
 	if !exist {
 		return true
@@ -87,20 +87,20 @@ func (manager *BlockManager) SetBlockStatusByHeight(height, nanoSecond int64) {
 }
 
 //将指定区块插入，默认是100
-func (manager *BlockManager) Insert(block Block) {
-	hash := hex.EncodeToString(block.CurrentHash)
-	if _, exist := manager.Blocks.Load(hash); exist {
-		return
-	} else {
-		manager.Blocks.Store(hash, block)
-		manager.BlockStatus.Store(hash, BLOCK_TO_BE_HANDLE)
-	}
+func (manager *BlockManager) Insert(block Header) {
+	//hash := hex.EncodeToString(block.CurrentHash)
+	//if _, exist := manager.Blocks.Load(hash); exist {
+	//	return
+	//} else {
+	//	manager.Blocks.Store(hash, block)
+	//	manager.BlockStatus.Store(hash, BLOCK_TO_BE_HANDLE)
+	//}
 }
 
-func (manager *BlockManager) GetBlock(hash []byte) (Block, bool) {
+func (manager *BlockManager) GetBlock(hash []byte) (Header, bool) {
 	block, exist := manager.Blocks.Load(hex.EncodeToString(hash))
 	if !exist {
-		return Block{}, exist
+		return Header{}, exist
 	}
-	return block.(Block), exist
+	return block.(Header), exist
 }
