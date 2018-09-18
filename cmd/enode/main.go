@@ -3,8 +3,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"strings"
-
 	"net/http"
 	"os"
 	"runtime"
@@ -15,7 +13,6 @@ import (
 	"github.com/EducationEKT/EKT/conf"
 	"github.com/EducationEKT/EKT/db"
 	"github.com/EducationEKT/EKT/log"
-	"github.com/EducationEKT/EKT/node"
 	"github.com/EducationEKT/EKT/param"
 
 	"github.com/EducationEKT/xserver/x_http"
@@ -55,13 +52,7 @@ func init() {
 		os.Exit(-1)
 	}
 
-	if strings.Contains(m, "full") {
-		m := node.NewFullMode(conf.EKTConfig)
-		go m.StartNode()
-	} else {
-		// 启动多链
-		blockchain_manager.Init()
-	}
+	blockchain_manager.Init(m)
 
 	http.HandleFunc("/", x_http.Service)
 }
