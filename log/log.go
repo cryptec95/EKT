@@ -1,6 +1,7 @@
 package log
 
 import (
+	"runtime"
 	"sync"
 
 	"github.com/EducationEKT/EKT/xlog"
@@ -33,4 +34,10 @@ func Warn(msg string, args ...interface{}) {
 
 func Crit(msg string, args ...interface{}) {
 	l.Crit(msg, args...)
+}
+
+func PrintStack(source string) {
+	var buf [4096]byte
+	runtime.Stack(buf[:], false)
+	l.Crit("Panic occured at %s, %s", source, string(buf[:]))
 }
