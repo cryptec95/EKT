@@ -9,7 +9,7 @@ import (
 
 	_ "github.com/EducationEKT/EKT/api"
 
-	"github.com/EducationEKT/EKT/blockchain_manager"
+	"github.com/EducationEKT/EKT/node"
 	"github.com/EducationEKT/EKT/conf"
 	"github.com/EducationEKT/EKT/db"
 	"github.com/EducationEKT/EKT/log"
@@ -52,7 +52,7 @@ func init() {
 		os.Exit(-1)
 	}
 
-	blockchain_manager.Init(m)
+	node.Init(m)
 
 	http.HandleFunc("/", x_http.Service)
 }
