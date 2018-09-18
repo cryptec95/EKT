@@ -8,43 +8,55 @@ import (
 	"github.com/EducationEKT/EKT/encapdb/schema"
 )
 
-func GetBlockByHeight(chainId, height int64) (*blockchain.Header, error) {
+func GetBlockByHeight(chainId, height int64) *blockchain.Block {
 	key := schema.GetBlockByHeightKey(chainId, height)
-	hash, err := db.GetDBInst().Get(key)
+	data, err := db.GetDBInst().Get(key)
 	if err != nil {
-		return nil, err
+		return nil
 	}
-	return GetBlockByHash(hash)
+	return blockchain.GetBlockFromBytes(data)
+}
+func SetBlockByHeight(chainId, height int64, block blockchain.Block) {
+	key := schema.GetBlockByHeightKey(chainId, height)
+	data, _ := json.Marshal(block)
+	db.GetDBInst().Set(key, data)
 }
 
-func SetBlockByHeight(chainId, height int64, header blockchain.Header) error {
+func GetHeaderByHeight(chainId, height int64) *blockchain.Header {
+	key := schema.GetHeaderByHeightKey(chainId, height)
+	hash, err := db.GetDBInst().Get(key)
+	if err != nil {
+		return nil
+	}
+	return GetHeaderByHash(hash)
+}
+
+func SetHeaderByHeight(chainId, height int64, header blockchain.Header) error {
 	hash := header.CaculateHash()
 	db.GetDBInst().Set(hash, header.Bytes())
-	key := schema.GetBlockByHeightKey(chainId, height)
+	key := schema.GetHeaderByHeightKey(chainId, height)
 	return db.GetDBInst().Set(key, hash)
 }
 
-func GetBlockByHash(hash types.HexBytes) (*blockchain.Header, error) {
+func GetHeaderByHash(hash types.HexBytes) *blockchain.Header {
 	data, err := db.GetDBInst().Get(hash)
 	if err != nil {
-		return nil, err
+		return nil
 	}
-	var header blockchain.Header
-	err = json.Unmarshal(data, &header)
-	return &header, err
+	return blockchain.FromBytes2Header(data)
 }
 
-func GetLastBlock(chainId int64) (*blockchain.Header, error) {
-	key := schema.LastBlockKey(chainId)
+func GetLastHeader(chainId int64) *blockchain.Header {
+	key := schema.LastHeaderKey(chainId)
 	hash, err := db.GetDBInst().Get(key)
 	if err != nil {
-		return nil, err
+		return nil
 	}
-	return GetBlockByHash(hash)
+	return GetHeaderByHash(hash)
 }
 
-func SetLastBlock(chainId int64, header blockchain.Header) error {
-	key := schema.LastBlockKey(chainId)
+func SetLastHeader(chainId int64, header blockchain.Header) error {
+	key := schema.LastHeaderKey(chainId)
 	db.GetDBInst().Set(header.CaculateHash(), header.Bytes())
 	return db.GetDBInst().Set(key, header.CaculateHash())
 }

@@ -2,11 +2,11 @@ package param
 
 import (
 	"github.com/EducationEKT/EKT/conf"
-	"github.com/EducationEKT/EKT/p2p"
+	"github.com/EducationEKT/EKT/core/types"
 )
 
-var mapping = make(map[string][]p2p.Peer)
-var MainChainDelegateNode []p2p.Peer
+var mapping = make(map[string][]types.Peer)
+var MainChainDelegateNode []types.Peer
 
 func InitBootNodes() {
 	mapping["mainnet"] = MainNet

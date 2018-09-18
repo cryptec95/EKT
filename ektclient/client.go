@@ -6,10 +6,10 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/EducationEKT/EKT/blockchain"
+	"github.com/EducationEKT/EKT/core/types"
 	"github.com/EducationEKT/EKT/core/userevent"
 	"github.com/EducationEKT/EKT/crypto"
 	"github.com/EducationEKT/EKT/db"
-	"github.com/EducationEKT/EKT/p2p"
 	"github.com/EducationEKT/EKT/util"
 	"strconv"
 	"xserver/x_http/x_resp"
@@ -17,8 +17,8 @@ import (
 
 type IClient interface {
 	// block
-	GetBlockByHeight(height int64) *blockchain.Block
-	GetLastBlock(peer p2p.Peer) *blockchain.Block
+	GetBlockByHeight(height int64) *blockchain.Header
+	GetLastBlock(peer types.Peer) *blockchain.Header
 
 	// block body
 	GetEventIds(hash []byte) []string
@@ -29,14 +29,14 @@ type IClient interface {
 }
 
 type Client struct {
-	peers []p2p.Peer
+	peers []types.Peer
 }
 
-func NewClient(peers []p2p.Peer) IClient {
+func NewClient(peers []types.Peer) IClient {
 	return Client{peers: peers}
 }
 
-func (client Client) GetBlockByHeight(height int64) *blockchain.Block {
+func (client Client) GetBlockByHeight(height int64) *blockchain.Header {
 	for _, peer := range client.peers {
 		url := util.StringJoint("http://", peer.Address, ":", strconv.Itoa(int(peer.Port)), "/block/api/blockByHeight?height=", strconv.Itoa(int(height)))
 		body, err := util.HttpGet(url)
@@ -50,7 +50,7 @@ func (client Client) GetBlockByHeight(height int64) *blockchain.Block {
 	return nil
 }
 
-func (client Client) GetLastBlock(peer p2p.Peer) *blockchain.Block {
+func (client Client) GetLastBlock(peer types.Peer) *blockchain.Header {
 	for _, peer := range client.peers {
 		url := util.StringJoint("http://", peer.Address, ":", strconv.Itoa(int(peer.Port)), "/block/api/last")
 		body, err := util.HttpGet(url)
@@ -88,11 +88,9 @@ func (client Client) GetEventIds(hash []byte) []string {
 		if !bytes.EqualFold(crypto.Sha3_256(body), hash) {
 			continue
 		}
-		blockBody, err := blockchain.FromBytes2BLockBody(body)
 		if err != nil {
 			return nil
 		}
-		return blockBody.Events
 	}
 	return nil
 }
@@ -132,7 +130,7 @@ func (client Client) GetEvent(eventId string) userevent.IUserEvent {
 	return nil
 }
 
-func GetBlockFromResp(body []byte) *blockchain.Block {
+func GetBlockFromResp(body []byte) *blockchain.Header {
 	var resp x_resp.XRespBody
 	err := json.Unmarshal(body, &resp)
 	if err != nil || resp.Status != 0 {
@@ -140,7 +138,7 @@ func GetBlockFromResp(body []byte) *blockchain.Block {
 	}
 	data, err := json.Marshal(resp.Result)
 	if err == nil {
-		var block blockchain.Block
+		var block blockchain.Header
 		err = json.Unmarshal(data, &block)
 		return &block
 	}

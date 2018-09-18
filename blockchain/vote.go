@@ -11,7 +11,6 @@ import (
 	"github.com/EducationEKT/EKT/core/types"
 	"github.com/EducationEKT/EKT/crypto"
 	"github.com/EducationEKT/EKT/log"
-	"github.com/EducationEKT/EKT/p2p"
 )
 
 var VoteResultManager VoteResults
@@ -25,7 +24,7 @@ type BlockVote struct {
 	BlockHash    types.HexBytes `json:"blockHash"`
 	BlockHeight  int64          `json:"blockHeight"`
 	VoteResult   bool           `json:"voteResult"`
-	Peer         p2p.Peer       `json:"peer"`
+	Peer         types.Peer     `json:"peer"`
 	Signature    types.HexBytes `json:"signature"`
 }
 

@@ -1,15 +1,12 @@
-package round
+package types
 
 import (
 	"encoding/json"
-	"github.com/EducationEKT/EKT/conf"
-	"github.com/EducationEKT/EKT/p2p"
-	"github.com/EducationEKT/EKT/util"
 )
 
 type Round struct {
-	CurrentIndex int        `json:"currentIndex"` // default -1
-	Peers        []p2p.Peer `json:"peers"`
+	CurrentIndex int    `json:"currentIndex"` // default -1
+	Peers        []Peer `json:"peers"`
 }
 
 func (round1 *Round) Equal(round2 *Round) bool {
@@ -51,23 +48,6 @@ func (round *Round) Swap(i, j int) {
 
 func (round *Round) Len() int {
 	return len(round.Peers)
-}
-
-func GetRandomByHash(hash []byte) int {
-	random := util.BytesToInt(hash[22:])
-	if random < 0 {
-		random = -random
-	}
-	return random
-}
-
-func (round Round) MyIndex() int {
-	for i, peer := range round.Peers {
-		if peer.Equal(conf.EKTConfig.Node) {
-			return i
-		}
-	}
-	return -1
 }
 
 func (round Round) String() string {

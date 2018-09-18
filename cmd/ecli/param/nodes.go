@@ -1,7 +1,7 @@
 package param
 
 import (
-	"github.com/EducationEKT/EKT/p2p"
+	"github.com/EducationEKT/EKT/core/types"
 	"github.com/EducationEKT/EKT/param"
 )
 
@@ -11,7 +11,7 @@ var (
 	Mainnet  bool = false
 )
 
-func GetPeers() []p2p.Peer {
+func GetPeers() []types.Peer {
 	if Localnet {
 		return param.LocalNet
 	} else if Testnet {

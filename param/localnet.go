@@ -3,13 +3,12 @@ package param
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/EducationEKT/EKT/core/types"
 	"io/ioutil"
 	"log"
-
-	"github.com/EducationEKT/EKT/p2p"
 )
 
-var LocalNet = []p2p.Peer{
+var LocalNet = []types.Peer{
 	{"8d9ba40d8d2638386fb9bcea9e92cf636b044bb409486dd88c2ae104a42de348", "127.0.0.1", 19951, 4},
 	{"053d2c7c6c29571916264261ffa53d74a2e44753ee029f6fbb9ac43d953bfebe", "127.0.0.1", 19952, 4},
 	{"416d5a9691c1893fec49189ca2b94b773cd297448100557b2f85dd1c4cedb230", "127.0.0.1", 19953, 4},
@@ -36,13 +35,13 @@ func loadLocalNet() {
 		log.Println("Invalid localnet.json format, ingore it")
 		return
 	}
-	net := []p2p.Peer{}
+	net := []types.Peer{}
 	for _, peer := range peers {
 		if len(peer) != 4 {
 			fmt.Println("Invalid localnet.json format, ingore it")
 			return
 		}
-		net = append(net, p2p.Peer{peer[0].(string), peer[1].(string), int32(peer[2].(float64)), int(peer[3].(float64))})
+		net = append(net, types.Peer{peer[0].(string), peer[1].(string), int32(peer[2].(float64)), int(peer[3].(float64))})
 	}
 	LocalNet = net
 	log.Println("Using localnet.json")

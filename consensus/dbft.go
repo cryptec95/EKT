@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"github.com/EducationEKT/EKT/encapdb"
 	"xserver/x_http/x_resp"
 
 	"sync"
@@ -14,24 +15,19 @@ import (
 	"github.com/EducationEKT/EKT/conf"
 	"github.com/EducationEKT/EKT/core/types"
 	"github.com/EducationEKT/EKT/core/userevent"
-	"github.com/EducationEKT/EKT/crypto"
 	"github.com/EducationEKT/EKT/ctxlog"
 	"github.com/EducationEKT/EKT/db"
 	"github.com/EducationEKT/EKT/log"
-	"github.com/EducationEKT/EKT/p2p"
 	"github.com/EducationEKT/EKT/param"
-	"github.com/EducationEKT/EKT/pool"
-	"github.com/EducationEKT/EKT/round"
 	"github.com/EducationEKT/EKT/util"
 	"runtime"
 	"strings"
 )
 
 type DbftConsensus struct {
+	Round        *types.Round
 	Blockchain   *blockchain.BlockChain
 	BlockManager *blockchain.BlockManager
-	Block        chan blockchain.Block
-	Vote         chan blockchain.BlockVote
 	VoteResults  blockchain.VoteResults
 	Locker       sync.RWMutex
 }
@@ -40,21 +36,23 @@ func NewDbftConsensus(Blockchain *blockchain.BlockChain) *DbftConsensus {
 	return &DbftConsensus{
 		Blockchain:   Blockchain,
 		BlockManager: blockchain.NewBlockManager(),
-		Block:        make(chan blockchain.Block),
-		Vote:         make(chan blockchain.BlockVote),
 		VoteResults:  blockchain.NewVoteResults(),
 		Locker:       sync.RWMutex{},
 	}
 }
 
+func (dbft DbftConsensus) GetRound() *types.Round {
+	return dbft.Round
+}
+
 // 校验从其他委托人节点过来的区块数据
-func (dbft DbftConsensus) BlockFromPeer(ctxlog *ctxlog.ContextLog, block blockchain.Block) {
+func (dbft DbftConsensus) BlockFromPeer(ctxlog *ctxlog.ContextLog, block blockchain.Block, header blockchain.Header) {
 	dbft.Locker.Lock()
 	defer dbft.Locker.Unlock()
 
-	dbft.BlockManager.Insert(block)
+	dbft.BlockManager.Insert(header)
 
-	status := dbft.BlockManager.GetBlockStatus(block.CurrentHash)
+	status := dbft.BlockManager.GetBlockStatus(header.CaculateHash())
 	if status == blockchain.BLOCK_SAVED ||
 		(status > blockchain.BLOCK_ERROR_START && status < blockchain.BLOCK_ERROR_END) ||
 		status == blockchain.BLOCK_VOTED {
@@ -65,64 +63,40 @@ func (dbft DbftConsensus) BlockFromPeer(ctxlog *ctxlog.ContextLog, block blockch
 
 	if status == blockchain.BLOCK_VALID {
 		ctxlog.Log("SendVote", true)
-		dbft.SendVote(block)
-		dbft.BlockManager.SetBlockStatus(block.CurrentHash, blockchain.BLOCK_VOTED)
+		dbft.SendVote(header)
+		dbft.BlockManager.SetBlockStatus(header.CaculateHash(), blockchain.BLOCK_VOTED)
 		return
 	}
 
 	// 判断此区块是否是一个interval之前打包的，如果是则放弃vote
 	// unit： ms    单位：ms
-	blockLatencyTime := int(time.Now().UnixNano()/1e6 - block.Timestamp) // 从节点打包到当前节点的延迟，单位ms
-	blockInterval := int(blockchain.BackboneBlockInterval / 1e6)         // 当前链的打包间隔，单位nanoSecond,计算为ms
+	blockLatencyTime := int(time.Now().UnixNano()/1e6 - header.Timestamp) // 从节点打包到当前节点的延迟，单位ms
+	blockInterval := int(blockchain.BackboneBlockInterval / 1e6)          // 当前链的打包间隔，单位nanoSecond,计算为ms
 	if blockLatencyTime > blockInterval {
 		ctxlog.Log("More than an interval", true)
-		dbft.BlockManager.SetBlockStatus(block.CurrentHash, blockchain.BLOCK_ERROR_BROADCAST_TIME)
+		dbft.BlockManager.SetBlockStatus(header.CaculateHash(), blockchain.BLOCK_ERROR_BROADCAST_TIME)
 		return
 	}
 
-	// 校验打包节点在打包时是否有打包权限
-	log.Info("Validating is the right node.")
-	lastBlock := dbft.Blockchain.LastBlock()
-	if result := dbft.ValidatePackRight(block.Timestamp, lastBlock.Timestamp, lastBlock.GetRound().Clone(), block.GetRound().Peers[block.GetRound().CurrentIndex]); !result {
-		dbft.BlockManager.SetBlockStatus(block.CurrentHash, blockchain.BLOCK_ERROR_PACK_TIME)
-		ctxlog.Log("rightNode", result)
-		return
-	} else {
-		ctxlog.Log("rightNode", result)
-	}
-
-	// validate hash
-	if !block.ValidateHash() {
-		ctxlog.Log("BLOCK_ERROR_HASH", true)
-		dbft.BlockManager.SetBlockStatus(block.CurrentHash, blockchain.BLOCK_ERROR_HASH)
+	if !dbft.ValidatePackRight(header.Timestamp, dbft.Blockchain.LastBlock().Timestamp, dbft.Round, block.Miner) {
+		ctxlog.Log("Invalid node", true)
 		return
 	}
 
-	// validate sign
-	if !dbft.ValidateSign(block) {
-		ctxlog.Log("BLOCK_ERROR_SIGN", true)
-		dbft.BlockManager.SetBlockStatus(block.CurrentHash, blockchain.BLOCK_ERROR_SIGN)
-		return
-	}
-
-	events, err := dbft.getBlockEvents(&block)
-	if err != nil {
-		ctxlog.Log("Get block events failed", err.Error())
-		return
-	}
-
+	transactions := block.GetTransactions()
+	receipts := block.GetTxReceipts()
 	// 对区块进行validate和recover，如果区块数据没问题，则发送投票给其他节点
-	if dbft.Blockchain.ValidateNextBlock(ctxlog, block, events) {
+	if dbft.Blockchain.LastBlock().ValidateBlockStat(header, transactions, receipts) {
 		ctxlog.Log("SendVote", true)
-		dbft.BlockManager.SetBlockStatus(block.CurrentHash, blockchain.BLOCK_VOTED)
-		dbft.SendVote(block)
+		dbft.BlockManager.SetBlockStatus(header.CaculateHash(), blockchain.BLOCK_VOTED)
+		dbft.SendVote(header)
 	} else {
 		ctxlog.Log("error body", true)
-		dbft.BlockManager.SetBlockStatus(block.CurrentHash, blockchain.BLOCK_ERROR_BODY)
+		dbft.BlockManager.SetBlockStatus(header.CaculateHash(), blockchain.BLOCK_ERROR_BODY)
 	}
 }
 
-func (dbft DbftConsensus) getUserEvent(peer p2p.Peer, eventId string) (userevent.IUserEvent, error) {
+func (dbft DbftConsensus) getUserEvent(peer types.Peer, eventId string) (userevent.IUserEvent, error) {
 	data, err := peer.GetDBValue(eventId)
 	if err != nil {
 		return nil, err
@@ -170,60 +144,50 @@ func (dbft DbftConsensus) getUserEvent(peer p2p.Peer, eventId string) (userevent
 	}
 }
 
-func (dbft DbftConsensus) getBlockEvents(block *blockchain.Block) (list []userevent.IUserEvent, err error) {
-	if !dbft.syncBlockBody(block) {
-		return nil, errors.New("synchronized body error")
-	}
-	eventIds := block.BlockBody.Events
-	if len(eventIds) > 0 {
-		for _, eventId := range eventIds {
-			eventGetter := pool.NewEventGetter(eventId)
-			dbft.Blockchain.Pool.EventGetter <- eventGetter
-			event := <-eventGetter.Chan
-			if event == nil {
-				event, err = dbft.getUserEvent(block.GetRound().Peers[block.GetRound().CurrentIndex], eventId)
-				if err != nil {
-					log.Crit("Invalid EventId %s, error: %s", eventId, err.Error())
-					return nil, err
-				}
-				dbft.Blockchain.Pool.EventPutter <- event
-			}
-			list = append(list, event)
-		}
-	}
-	return list, nil
-}
+//func (dbft DbftConsensus) getBlockEvents(block *blockchain.Header) (list []userevent.IUserEvent, err error) {
+//	if !dbft.syncBlockBody(block) {
+//		return nil, errors.New("synchronized body error")
+//	}
+//	eventIds := []string{}
+//	//eventIds := block.BlockBody.Events
+//	if len(eventIds) > 0 {
+//		for _, eventId := range eventIds {
+//			eventGetter := pool.NewEventGetter(eventId)
+//			dbft.Blockchain.Pool.EventGetter <- eventGetter
+//			event := <-eventGetter.Chan
+//			if event == nil {
+//				event, err = dbft.getUserEvent(block.GetRound().Peers[block.GetRound().CurrentIndex], eventId)
+//				if err != nil {
+//					log.Crit("Invalid EventId %s, error: %s", eventId, err.Error())
+//					return nil, err
+//				}
+//				dbft.Blockchain.Pool.EventPutter <- event
+//			}
+//			list = append(list, event)
+//		}
+//	}
+//	return list, nil
+//}
 
-func (dbft DbftConsensus) syncBlockBody(block *blockchain.Block) bool {
-	// 从打包节点获取body
-	body, err := block.GetRound().Peers[block.GetRound().CurrentIndex].GetDBValue(hex.EncodeToString(block.Body))
-	if err != nil {
-		return false
-	}
-	block.BlockBody, err = blockchain.FromBytes2BLockBody(body)
-	if err != nil {
-		return false
-	}
-	return true
-}
-
-func (dbft DbftConsensus) ValidateSign(block blockchain.Block) bool {
-	if pubkey, err := crypto.RecoverPubKey(crypto.Sha3_256(block.CurrentHash), block.Signature); err != nil {
-		return false
-	} else {
-		if !strings.EqualFold(hex.EncodeToString(types.FromPubKeyToAddress(pubkey)), block.GetRound().Peers[block.GetRound().CurrentIndex].Account) {
-			return false
-		}
-	}
-	return true
-}
+//func (dbft DbftConsensus) syncBlockBody(block *blockchain.Header) bool {
+//	// 从打包节点获取body
+//	body, err := block.GetRound().Peers[block.GetRound().CurrentIndex].GetDBValue(hex.EncodeToString(block.Body))
+//	if err != nil {
+//		return false
+//	}
+//	block.BlockBody, err = blockchain.FromBytes2BLockBody(body)
+//	if err != nil {
+//		return false
+//	}
+//	return true
+//}
 
 // 校验从其他委托人节点来的区块成功之后发送投票
-func (dbft DbftConsensus) SendVote(block blockchain.Block) {
+func (dbft DbftConsensus) SendVote(header blockchain.Header) {
 	// 同一个节点在一个出块interval内对一个高度只会投票一次，所以先校验是否进行过投票
 	//log.Info("Validating send vote interval.")
 	// 获取上次投票时间 lastVoteTime < 0 表明当前区块没有投票过
-	lastVoteTime := dbft.BlockManager.GetVoteTime(block.Height)
+	lastVoteTime := dbft.BlockManager.GetVoteTime(header.Height)
 	if lastVoteTime > 0 {
 		// 距离投票的毫秒数
 		intervalInFact := int(time.Now().UnixNano()/1e6 - lastVoteTime)
@@ -238,13 +202,13 @@ func (dbft DbftConsensus) SendVote(block blockchain.Block) {
 	}
 
 	// 记录此次投票的时间
-	dbft.BlockManager.SetVoteTime(block.Height, time.Now().UnixNano()/1e6)
+	dbft.BlockManager.SetVoteTime(header.Height, time.Now().UnixNano()/1e6)
 
 	// 生成vote对象
 	vote := &blockchain.BlockVote{
 		BlockchainId: dbft.Blockchain.ChainId,
-		BlockHash:    block.Hash(),
-		BlockHeight:  block.Height,
+		BlockHash:    header.CaculateHash(),
+		BlockHeight:  header.Height,
 		VoteResult:   true,
 		Peer:         conf.EKTConfig.Node,
 	}
@@ -258,11 +222,9 @@ func (dbft DbftConsensus) SendVote(block blockchain.Block) {
 
 	// 向其他节点发送签名后的vote信息
 	log.Info("Signed this vote, sending vote result to other peers.")
-	for i, peer := range block.GetRound().Peers {
-		if (i-block.GetRound().CurrentIndex+len(block.GetRound().Peers))%len(block.GetRound().Peers) <= len(block.GetRound().Peers)/2 {
-			url := fmt.Sprintf(`http://%s:%d/vote/api/vote`, peer.Address, peer.Port)
-			go util.HttpPost(url, vote.Bytes())
-		}
+	for _, peer := range dbft.Round.Peers {
+		url := fmt.Sprintf(`http://%s:%d/vote/api/vote`, peer.Address, peer.Port)
+		go util.HttpPost(url, vote.Bytes())
 	}
 	log.Info("Send vote to other peer succeed.")
 }
@@ -273,9 +235,7 @@ func (dbft *DbftConsensus) StableRun() {
 		func() {
 			defer func() {
 				if r := recover(); r != nil {
-					var buf [4096]byte
-					runtime.Stack(buf[:], false)
-					log.Crit("Panic occured at delegate thread, %s", string(buf[:]))
+					log.PrintStack("dbft.StableRun")
 				}
 			}()
 			dbft.Run()
@@ -284,7 +244,7 @@ func (dbft *DbftConsensus) StableRun() {
 }
 
 // 委托人节点检测其他节点未按时出块的情况下， 当前节点进行打包的逻辑
-func (dbft DbftConsensus) DelegateRun() {
+func (dbft DbftConsensus) delegateRun() {
 	log.Info("DBFT started.")
 
 	//要求有半数以上节点存活才可以进行打包区块
@@ -311,7 +271,7 @@ func (dbft DbftConsensus) DelegateRun() {
 	}
 }
 
-func (dbft DbftConsensus) ValidatePackRight(packTime, lastBlockTime int64, lastRound *round.Round, node p2p.Peer) bool {
+func (dbft DbftConsensus) ValidatePackRight(packTime, lastBlockTime int64, lastRound *types.Round, node types.Peer) bool {
 	if lastRound == nil {
 		return param.MainChainDelegateNode[0].Equal(node)
 	} else {
@@ -334,21 +294,12 @@ func (dbft DbftConsensus) ValidatePackRight(packTime, lastBlockTime int64, lastR
 }
 
 // 判断peer在指定时间是否有打包区块的权力
-func (dbft DbftConsensus) PeerTurn(packTime, lastBlockTime int64, peer p2p.Peer) bool {
+func (dbft DbftConsensus) PeerTurn(packTime, lastBlockTime int64, peer types.Peer) bool {
 	log.Info("Validating peer has the right to pack block.")
-
-	// 如果当前高度为0，则区块中不包含round，否则从block中取round
-	round := &round.Round{
-		Peers:        param.MainChainDelegateNode,
-		CurrentIndex: -1,
-	}
-	if dbft.Blockchain.GetLastHeight() > 0 {
-		round = dbft.Blockchain.LastBlock().GetRound()
-	}
 
 	// 如果当前高度为0，则需要第一个节点进行打包
 	if dbft.Blockchain.GetLastHeight() == 0 {
-		if round.Peers[0].Equal(peer) {
+		if dbft.GetRound().Peers[0].Equal(peer) {
 			return true
 		} else {
 			return false
@@ -374,14 +325,9 @@ func (dbft DbftConsensus) PeerTurn(packTime, lastBlockTime int64, peer p2p.Peer)
 	// 超过n个interval则需要第n+1个节点进行打包
 	n++
 
-	nextRound := round.Clone()
 	// 判断peer是否拥有打包权限
-	nextRound.CurrentIndex = (round.CurrentIndex + n) % round.Len()
-	if nextRound.Peers[nextRound.CurrentIndex].Equal(peer) {
-		return true
-	} else {
-		return false
-	}
+	_round := dbft.GetRound().Clone()
+	return _round.Peers[(_round.CurrentIndex+n)%_round.Len()].Equal(peer)
 }
 
 // 用于委托人线程判断当前节点是否有打包权限
@@ -394,10 +340,6 @@ func (dbft DbftConsensus) IsMyTurn() bool {
 }
 
 func (dbft *DbftConsensus) Run() {
-	// 从数据库中恢复当前节点已同步的区块
-	log.Info("Recover data from local database.")
-	dbft.RecoverFromDB()
-	log.Info("Local data recovered. Current height is %d.\n", dbft.Blockchain.GetLastHeight())
 
 	log.Info("Synchronizing blockchain ...")
 	interval, failCount := 50*time.Millisecond, 0
@@ -433,18 +375,16 @@ func (dbft *DbftConsensus) Run() {
 
 // 开启delegate线程
 func (dbft *DbftConsensus) startDelegateThread() {
-	// 稳定启动dbft.DelegateRun()
+	// 稳定启动dbft.delegateRun()
 	go func() {
 		for {
 			func() {
 				defer func() {
 					if r := recover(); r != nil {
-						var buf [4096]byte
-						runtime.Stack(buf[:], false)
-						log.Crit("Panic occured at delegate thread, %s", string(buf[:]))
+						log.PrintStack("dbft.startDelegateThread.delegateRun")
 					}
 				}()
-				dbft.DelegateRun()
+				dbft.delegateRun()
 			}()
 		}
 
@@ -456,9 +396,7 @@ func (dbft *DbftConsensus) startDelegateThread() {
 			func() {
 				defer func() {
 					if r := recover(); r != nil {
-						var buf [4096]byte
-						runtime.Stack(buf[:], false)
-						log.Crit("Panic occured at delegate sync thread, %s", string(buf[:]))
+						log.PrintStack("dbft.startDelegateThread.delegateSync")
 					}
 				}()
 				dbft.delegateSync()
@@ -502,8 +440,7 @@ func (dbft DbftConsensus) Pack(ctxlog *ctxlog.ContextLog) {
 	// 对下一个区块进行打包
 	lastBlock := dbft.Blockchain.LastBlock()
 	dbft.Locker.Lock()
-	status := dbft.BlockManager.GetBlockStatusByHeight(lastBlock.Height+1, int64(blockchain.BackboneBlockInterval))
-	if status {
+	if dbft.BlockManager.CheckHeightInterval(lastBlock.Height+1, int64(blockchain.BackboneBlockInterval)) {
 		dbft.BlockManager.SetBlockStatusByHeight(lastBlock.Height+1, time.Now().UnixNano())
 		dbft.Locker.Unlock()
 	} else {
@@ -514,17 +451,6 @@ func (dbft DbftConsensus) Pack(ctxlog *ctxlog.ContextLog) {
 
 	// 如果block不为空，说明打包成功，签名后转发给其他节点
 	if block != nil {
-		if lastBlock.Round == nil {
-			block.Round = &round.Round{
-				Peers:        param.MainChainDelegateNode,
-				CurrentIndex: 0,
-			}
-		} else {
-			// 判断是否需要进入下一个round
-			block.Round = lastBlock.Round.Clone()
-			block.Round.CurrentIndex = block.Round.MyIndex()
-		}
-
 		// 计算hash
 		block.CaculateHash()
 
@@ -532,7 +458,7 @@ func (dbft DbftConsensus) Pack(ctxlog *ctxlog.ContextLog) {
 
 		// 增加打包信息
 		dbft.BlockManager.Insert(*block)
-		dbft.BlockManager.SetBlockStatus(block.CurrentHash, blockchain.BLOCK_VALID)
+		dbft.BlockManager.SetBlockStatus(block.CaculateHash(), blockchain.BLOCK_VALID)
 		dbft.BlockManager.SetBlockStatusByHeight(block.Height, block.Timestamp)
 
 		// 签名
@@ -547,10 +473,10 @@ func (dbft DbftConsensus) Pack(ctxlog *ctxlog.ContextLog) {
 }
 
 // 广播区块
-func (dbft DbftConsensus) broadcastBlock(block *blockchain.Block) {
+func (dbft DbftConsensus) broadcastBlock(block *blockchain.Header) {
 	log.Info("Broadcasting block to the other peers.")
 	data := block.Bytes()
-	for _, peer := range block.GetRound().Peers {
+	for _, peer := range dbft.GetRound().Peers {
 		url := fmt.Sprintf(`http://%s:%d/block/api/newBlock`, peer.Address, peer.Port)
 		go util.HttpPost(url, data)
 	}
@@ -558,19 +484,22 @@ func (dbft DbftConsensus) broadcastBlock(block *blockchain.Block) {
 
 // 从db中recover数据
 func (dbft DbftConsensus) RecoverFromDB() {
-	block, err := dbft.Blockchain.LastBlockFromDB()
+	header := encapdb.GetLastHeader(dbft.Blockchain.ChainId)
 	// 如果是第一次打开
-	if err != nil || block == nil {
+	if header == nil {
 		// 将创世块写入数据库
 		accounts := conf.EKTConfig.GenesisBlockAccounts
-		block = blockchain.GenesisBlock(accounts)
-		dbft.Blockchain.SaveBlock(*block)
+		block := blockchain.CreateGenesisBlock(accounts)
+		header = block.Header
+		encapdb.SetLastHeader(dbft.Blockchain.ChainId, *header)
+		encapdb.SetHeaderByHeight(dbft.Blockchain.ChainId, block.Header.Height, *header)
 	}
-	dbft.Blockchain.SetLastBlock(*block)
+	dbft.Blockchain.SetLastBlock(*header)
+	log.Info("Recovered from local database.")
 }
 
 // 获取存活的委托人节点数量
-func AliveDelegatePeerCount(peers p2p.Peers, print bool) int {
+func AliveDelegatePeerCount(peers types.Peers, print bool) int {
 	count := 0
 	for _, peer := range peers {
 		if peer.IsAlive() {
@@ -590,9 +519,6 @@ func (dbft DbftConsensus) SyncHeight(height int64) bool {
 		return true
 	}
 	peers := param.MainChainDelegateNode
-	if dbft.Blockchain.GetLastHeight() > 0 {
-		peers = dbft.Blockchain.LastBlock().GetRound().Peers
-	}
 	for _, peer := range peers {
 		// 为超级节点进行判断，如果该节点是自己则跳过, 减小同步耗时
 		if peer.Equal(conf.EKTConfig.Node) {
@@ -607,27 +533,27 @@ func (dbft DbftConsensus) SyncHeight(height int64) bool {
 			log.Crit("Invalid height from %s, want %d, get %s \n", peer.Address, height, string(block.Bytes()))
 			continue
 		}
-		votes, err := getVotes(peer, hex.EncodeToString(block.CurrentHash))
+		votes, err := getVotes(peer, hex.EncodeToString(block.CaculateHash()))
 		if err != nil {
 			log.Info("Error peer has no votes. %v", err)
 			continue
 		}
 		if votes.Validate() {
-			events, err := dbft.getBlockEvents(block)
-			if err != nil {
-				continue
-			}
-			if len(events) == 0 {
-				log.Info("It's a blank block. Don't need to validate next block.")
-				if dbft.RecieveVoteResultWhenBlank(votes, *block) {
-					return true
-				} else {
-					continue
-				}
-			}
-			if dbft.Blockchain.LastBlock().ValidateNextBlock(*block, events) {
-				dbft.SaveBlock(block, votes)
-			}
+			//events, err := dbft.getBlockEvents(block)
+			//if err != nil {
+			//	continue
+			//}
+			//if len(events) == 0 {
+			//	log.Info("It's a blank block. Don't need to validate next block.")
+			//	if dbft.RecieveVoteResultWhenBlank(votes, *block) {
+			//		return true
+			//	} else {
+			//		continue
+			//	}
+			//}
+			//if dbft.Blockchain.LastBlock().ValidateNextBlock(*block, events) {
+			//	dbft.SaveHeader(block, votes)
+			//}
 		}
 	}
 	return false
@@ -637,37 +563,14 @@ func (dbft DbftConsensus) SyncHeight(height int64) bool {
 func (dbft DbftConsensus) VoteFromPeer(vote blockchain.BlockVote) {
 	dbft.VoteResults.Insert(vote)
 
-	round := &round.Round{
-		Peers:        param.MainChainDelegateNode,
-		CurrentIndex: -1,
-	}
-	if dbft.Blockchain.GetLastHeight() > 0 {
-		round = dbft.Blockchain.LastBlock().GetRound().Clone()
-	}
-
-	if dbft.VoteResults.Number(vote.BlockHash) > len(round.Peers)/2 {
+	if dbft.VoteResults.Number(vote.BlockHash) > len(dbft.GetRound().Peers)/2 {
 		log.Info("Vote number more than half node, sending vote result to other nodes.")
 		votes := dbft.VoteResults.GetVoteResults(hex.EncodeToString(vote.BlockHash))
-		for _, peer := range round.Peers {
+		for _, peer := range dbft.GetRound().Peers {
 			url := fmt.Sprintf(`http://%s:%d/vote/api/voteResult`, peer.Address, peer.Port)
 			go util.HttpPost(url, votes.Bytes())
 		}
 	}
-}
-
-// deal blank block
-func (dbft DbftConsensus) RecieveVoteResultWhenBlank(votes blockchain.Votes, block blockchain.Block) bool {
-	if !dbft.ValidateVotes(votes) {
-		log.Info("Votes validate failed. %v", votes)
-		return false
-	}
-	dbft.SaveVotes(votes)
-	dbft.Blockchain.SaveBlock(block)
-	dbft.Blockchain.NotifyPool(block)
-	if block.Round.Peers[(block.Round.CurrentIndex+1)%block.Round.Len()].Equal(conf.EKTConfig.Node) {
-		dbft.Pack(ctxlog.NewContextLog("Pack signal from vote result."))
-	}
-	return true
 }
 
 // 收到从其他节点发送过来的voteResult，校验之后可以写入到区块链中
@@ -693,23 +596,12 @@ func (dbft DbftConsensus) RecieveVoteResult(votes blockchain.Votes) bool {
 	// 区块已经校验但未写入链中
 	if status == blockchain.BLOCK_VALID || status == blockchain.BLOCK_VOTED {
 		dbft.SaveVotes(votes)
-		block, exist := dbft.BlockManager.GetBlock(votes[0].BlockHash)
+		header, exist := dbft.BlockManager.GetBlock(votes[0].BlockHash)
 		if !exist {
 			return false
 		}
-		dbft.Blockchain.SaveBlock(block)
-		body, err := block.Round.Peers[block.Round.CurrentIndex].GetDBValue(hex.EncodeToString(block.Body))
-		if err != nil {
-			log.Error("Get block body failed, %v", err)
-		}
-		block.BlockBody, err = blockchain.FromBytes2BLockBody(body)
-		if err != nil {
-			log.Error("Get block body failed, %v", err)
-		}
-		dbft.Blockchain.NotifyPool(block)
-		if block.Round.Peers[(block.Round.CurrentIndex+1)%block.Round.Len()].Equal(conf.EKTConfig.Node) {
-			dbft.Pack(ctxlog.NewContextLog("Pack signal from vote result."))
-		}
+		encapdb.SetHeaderByHeight(dbft.Blockchain.ChainId, header.Height, header)
+		dbft.Blockchain.NotifyPool(header)
 		return true
 	}
 
@@ -717,8 +609,10 @@ func (dbft DbftConsensus) RecieveVoteResult(votes blockchain.Votes) bool {
 }
 
 func (dbft DbftConsensus) SaveBlock(block *blockchain.Block, votes blockchain.Votes) {
-	dbft.SaveVotes(votes)
-	dbft.Blockchain.SaveBlock(*block)
+	encapdb.SetVoteResults(dbft.Blockchain.ChainId, hex.EncodeToString(block.Hash), votes)
+	encapdb.SetBlockByHeight(dbft.Blockchain.ChainId, block.Header.Height, *block)
+	encapdb.SetHeaderByHeight(dbft.Blockchain.ChainId, block.Header.Height, *block.Header)
+	dbft.Blockchain.SetLastBlock(*block.Header)
 }
 
 // 校验voteResults
@@ -727,15 +621,7 @@ func (dbft DbftConsensus) ValidateVotes(votes blockchain.Votes) bool {
 		return false
 	}
 
-	round := &round.Round{
-		Peers:        param.MainChainDelegateNode,
-		CurrentIndex: -1,
-	}
-	if dbft.Blockchain.GetLastHeight() > 0 {
-		round = dbft.Blockchain.LastBlock().GetRound()
-	}
-
-	if votes.Len() <= len(round.Peers)/2 {
+	if votes.Len() <= dbft.GetRound().Len()/2 {
 		return false
 	}
 	return true
@@ -763,12 +649,12 @@ func (dbft DbftConsensus) GetVotes(blockHash string) blockchain.Votes {
 }
 
 //获取当前的peers
-func (dbft DbftConsensus) GetCurrentDelegatePeers() p2p.Peers {
+func (dbft DbftConsensus) GetCurrentDelegatePeers() types.Peers {
 	return param.MainChainDelegateNode
 }
 
 // 根据height获取blockHeader
-func getBlockHeader(peer p2p.Peer, height int64) (*blockchain.Block, error) {
+func getBlockHeader(peer types.Peer, height int64) (*blockchain.Header, error) {
 	url := fmt.Sprintf(`http://%s:%d/block/api/blockByHeight?height=%d`, peer.Address, peer.Port, height)
 	body, err := util.HttpGet(url)
 	if err != nil {
@@ -778,7 +664,7 @@ func getBlockHeader(peer p2p.Peer, height int64) (*blockchain.Block, error) {
 	err = json.Unmarshal(body, &resp)
 	data, err := json.Marshal(resp.Result)
 	if err == nil {
-		var block blockchain.Block
+		var block blockchain.Header
 		err = json.Unmarshal(data, &block)
 		return &block, err
 	}
@@ -786,7 +672,7 @@ func getBlockHeader(peer p2p.Peer, height int64) (*blockchain.Block, error) {
 }
 
 // 根据hash向委托人节点获取votes
-func getVotes(peer p2p.Peer, blockHash string) (blockchain.Votes, error) {
+func getVotes(peer types.Peer, blockHash string) (blockchain.Votes, error) {
 	url := fmt.Sprintf(`http://%s:%d/vote/api/getVotes?hash=%s`, peer.Address, peer.Port, blockHash)
 	body, err := util.HttpGet(url)
 	if err != nil {

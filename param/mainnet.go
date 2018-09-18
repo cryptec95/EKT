@@ -1,11 +1,9 @@
 package param
 
-import (
-	"github.com/EducationEKT/EKT/p2p"
-)
+import "github.com/EducationEKT/EKT/core/types"
 
 // 委托人节点由官方暂时托管
-var MainNet = []p2p.Peer{
+var MainNet = []types.Peer{
 	{"1ba20e0b391af81ca227efc4329ecad777cbe5c72dfdbebde04f8fac61ec6eae", "58.83.147.171", 19951, 4},
 	{"1ba20e0b391af81ca227efc4329ecad777cbe5c72dfdbebde04f8fac61ec6eae", "58.83.148.230", 19951, 4},
 	{"1ba20e0b391af81ca227efc4329ecad777cbe5c72dfdbebde04f8fac61ec6eae", "58.83.148.232", 19951, 4},
