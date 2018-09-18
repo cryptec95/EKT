@@ -1,16 +1,12 @@
 package api
 
 import (
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"strings"
-
 	"github.com/EducationEKT/EKT/blockchain"
 	"github.com/EducationEKT/EKT/blockchain_manager"
-	"github.com/EducationEKT/EKT/conf"
-	"github.com/EducationEKT/EKT/ctxlog"
-	"github.com/EducationEKT/EKT/util"
-
+	"github.com/EducationEKT/EKT/encapdb"
 	"github.com/EducationEKT/xserver/x_err"
 	"github.com/EducationEKT/xserver/x_http/x_req"
 	"github.com/EducationEKT/xserver/x_http/x_resp"
@@ -19,53 +15,50 @@ import (
 
 func init() {
 	x_router.Post("/block/api/last", lastBlock)
-	x_router.Get("/block/api/blockByHeight", blockByHeight)
-	x_router.Post("/block/api/newBlock", newBlock)
+	x_router.Get("/block/api/blockHeaderByHeight", blockHeaderByHeight)
+	x_router.Get("/block/api/getHeaderByHash", getHeaderByHash)
+	x_router.Get("/block/api/blockByHeight", getBlockByHeight)
+	x_router.Post("/block/api/newBlock", broadcast, newBlock)
 }
 
-func lastBlock(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
-	block := blockchain_manager.GetMainChain().LastBlock()
+func getBlockByHeight(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
+	height := req.MustGetInt64("height")
+	block := encapdb.GetBlockByHeight(1, height)
+	if block == nil {
+		return x_resp.Fail(-1, "not found", nil), nil
+	}
 	return x_resp.Return(block, nil)
 }
 
-func blockByHeight(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
-	bc := blockchain_manager.MainBlockChain
+func getHeaderByHash(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
+	hash := req.MustGetString("hash")
+	h, err := hex.DecodeString(hash)
+	if err != nil {
+		return x_resp.Return(nil, err)
+	}
+	return x_resp.Return(encapdb.GetHeaderByHash(h), nil)
+}
+
+func lastBlock(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
+	return x_resp.Return(encapdb.GetLastHeader(1), nil)
+}
+
+func blockHeaderByHeight(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
+	bc := blockchain_manager.GetMainChain()
 	height := req.MustGetInt64("height")
 	if bc.GetLastHeight() < height {
 		return nil, x_err.New(-404, fmt.Sprintf("Heigth %d is heigher than current height, current height is %d \n ", height, bc.GetLastHeight()))
 	}
-	block := bc.GetBlockByHeight(height)
-	if block == nil {
-		return x_resp.Fail(-1, "not found", nil), nil
-	}
-	return x_resp.Success(block), nil
+	return x_resp.Return(encapdb.GetHeaderByHeight(1, height), nil)
 }
 
 func newBlock(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
-	ctxlog := ctxlog.NewContextLog("Block from peer")
-	defer ctxlog.Finish()
-	var block blockchain.Block
+	var block blockchain.Header
 	json.Unmarshal(req.Body, &block)
-	ctxlog.Log("block", block)
 	lastHeight := blockchain_manager.GetMainChain().GetLastHeight()
 	if lastHeight+1 != block.Height {
-		ctxlog.Log("Invalid height", true)
 		return x_resp.Fail(-1, "error invalid height", nil), nil
 	}
-	IP := strings.Split(req.R.RemoteAddr, ":")[0]
-	if !strings.EqualFold(IP, conf.EKTConfig.Node.Address) &&
-		strings.EqualFold(block.GetRound().Peers[block.GetRound().CurrentIndex].Address, IP) && block.GetRound().MyIndex() != -1 &&
-		(block.GetRound().MyIndex()-block.GetRound().CurrentIndex+len(block.GetRound().Peers))%len(block.GetRound().Peers) < len(block.GetRound().Peers)/2 {
-		//当前节点是打包节点广播，而且当前节点满足(currentIndex - miningIndex + len(DelegateNodes)) % len(DelegateNodes) < len(DelegateNodes) / 2
-		if _, forward := req.Query["forward"]; !forward {
-			for i := 0; i < len(block.GetRound().Peers); i++ {
-				if i == block.GetRound().CurrentIndex || i == block.GetRound().MyIndex() {
-					continue
-				}
-				util.HttpPost(fmt.Sprintf(`http://%s:%d/block/api/newBlock?forward=true`, block.GetRound().Peers[i].Address, block.GetRound().Peers[i].Port), req.Body)
-			}
-		}
-	}
-	blockchain_manager.MainBlockChainConsensus.BlockFromPeer(ctxlog, block)
+	blockchain_manager.BlockFromPeer(block)
 	return x_resp.Return("recieved", nil)
 }

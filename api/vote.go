@@ -26,7 +26,7 @@ func voteBlock(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
 	if !vote.Validate() {
 		return x_resp.Return(false, nil)
 	}
-	go blockchain_manager.GetMainChainConsensus().VoteFromPeer(vote)
+	go blockchain_manager.VoteFromPeer(vote)
 	return nil, nil
 }
 
@@ -36,12 +36,12 @@ func voteResult(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
 	if err != nil {
 		return x_resp.Return(nil, err)
 	}
-	go blockchain_manager.GetMainChainConsensus().RecieveVoteResult(votes)
+	go blockchain_manager.VoteResultFromPeer(votes)
 	return x_resp.Success(make(map[string]interface{})), nil
 }
 
 func getVotes(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
 	blockHash := req.MustGetString("hash")
-	votes := blockchain_manager.GetMainChainConsensus().GetVotes(blockHash)
+	votes := blockchain_manager.GetVoteResults(1, blockHash)
 	return x_resp.Return(votes, nil)
 }

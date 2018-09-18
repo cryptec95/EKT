@@ -3,7 +3,6 @@ package api
 import (
 	"encoding/hex"
 	"github.com/EducationEKT/EKT/blockchain_manager"
-	"github.com/EducationEKT/EKT/ctxlog"
 	"github.com/EducationEKT/xserver/x_err"
 	"github.com/EducationEKT/xserver/x_http/x_req"
 	"github.com/EducationEKT/xserver/x_http/x_resp"
@@ -17,8 +16,6 @@ func init() {
 
 func userInfo(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
 	address := req.MustGetString("address")
-	log := ctxlog.NewContextLog("userInfo")
-	defer log.Finish()
 	hexAddress, err := hex.DecodeString(address)
 	if err != nil {
 		return x_resp.Return(nil, err)
@@ -31,16 +28,11 @@ func userInfo(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
 }
 
 func userNonce(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
-	ctxLog := ctxlog.NewContextLog("Get user last transaction nonce")
-	defer ctxLog.Finish()
-
 	hexAddress := req.MustGetString("address")
 	address, err := hex.DecodeString(hexAddress)
 	if err != nil {
 		return x_resp.Return(nil, err)
 	}
-	ctxLog.Log("address", hexAddress)
-
 	// get user nonce by user stat tree
 	account, err := blockchain_manager.GetMainChain().LastBlock().GetAccount(address)
 	if err != nil {
