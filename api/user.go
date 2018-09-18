@@ -2,7 +2,7 @@ package api
 
 import (
 	"encoding/hex"
-	"github.com/EducationEKT/EKT/blockchain_manager"
+	"github.com/EducationEKT/EKT/node"
 	"github.com/EducationEKT/xserver/x_err"
 	"github.com/EducationEKT/xserver/x_http/x_req"
 	"github.com/EducationEKT/xserver/x_http/x_resp"
@@ -20,7 +20,7 @@ func userInfo(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
 	if err != nil {
 		return x_resp.Return(nil, err)
 	}
-	account, err := blockchain_manager.GetMainChain().LastBlock().GetAccount(hexAddress)
+	account, err := node.GetMainChain().LastBlock().GetAccount(hexAddress)
 	if err != nil {
 		return x_resp.Return(nil, err)
 	}
@@ -34,13 +34,13 @@ func userNonce(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
 		return x_resp.Return(nil, err)
 	}
 	// get user nonce by user stat tree
-	account, err := blockchain_manager.GetMainChain().LastBlock().GetAccount(address)
+	account, err := node.GetMainChain().LastBlock().GetAccount(address)
 	if err != nil {
 		return x_resp.Return(nil, err)
 	}
 	nonce := account.GetNonce()
 
-	txs := blockchain_manager.GetMainChain().Pool.GetReadyEvents(hexAddress)
+	txs := node.GetMainChain().Pool.GetReadyEvents(hexAddress)
 	if len(txs) > 0 {
 		nonce = txs[len(txs)-1].GetNonce()
 	}

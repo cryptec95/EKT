@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/EducationEKT/EKT/blockchain"
-	"github.com/EducationEKT/EKT/blockchain_manager"
 	"github.com/EducationEKT/EKT/encapdb"
+	"github.com/EducationEKT/EKT/node"
 	"github.com/EducationEKT/xserver/x_err"
 	"github.com/EducationEKT/xserver/x_http/x_req"
 	"github.com/EducationEKT/xserver/x_http/x_resp"
@@ -44,7 +44,7 @@ func lastBlock(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
 }
 
 func blockHeaderByHeight(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
-	bc := blockchain_manager.GetMainChain()
+	bc := node.GetMainChain()
 	height := req.MustGetInt64("height")
 	if bc.GetLastHeight() < height {
 		return nil, x_err.New(-404, fmt.Sprintf("Heigth %d is heigher than current height, current height is %d \n ", height, bc.GetLastHeight()))
@@ -55,10 +55,10 @@ func blockHeaderByHeight(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) 
 func newBlock(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
 	var block blockchain.Header
 	json.Unmarshal(req.Body, &block)
-	lastHeight := blockchain_manager.GetMainChain().GetLastHeight()
+	lastHeight := node.GetMainChain().GetLastHeight()
 	if lastHeight+1 != block.Height {
 		return x_resp.Fail(-1, "error invalid height", nil), nil
 	}
-	blockchain_manager.BlockFromPeer(block)
+	node.BlockFromPeer(block)
 	return x_resp.Return("recieved", nil)
 }

@@ -3,11 +3,11 @@ package api
 import (
 	"encoding/hex"
 	"encoding/json"
-	"github.com/EducationEKT/EKT/blockchain_manager"
 	"github.com/EducationEKT/EKT/core/userevent"
 	"github.com/EducationEKT/EKT/crypto"
 	"github.com/EducationEKT/EKT/db"
 	"github.com/EducationEKT/EKT/dispatcher"
+	"github.com/EducationEKT/EKT/node"
 	"github.com/EducationEKT/EKT/param"
 	"github.com/EducationEKT/xserver/x_err"
 	"github.com/EducationEKT/xserver/x_http/x_req"
@@ -24,17 +24,17 @@ func init() {
 }
 
 func fee(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
-	return x_resp.Return(blockchain_manager.SuggestFee(), nil)
+	return x_resp.Return(node.SuggestFee(), nil)
 }
 
 func queueTxs(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
 	address := req.MustGetString("address")
-	return x_resp.Return(blockchain_manager.GetMainChain().Pool.GetReadyEvents(address), nil)
+	return x_resp.Return(node.GetMainChain().Pool.GetReadyEvents(address), nil)
 }
 
 func blockTxs(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
 	address := req.MustGetString("address")
-	return x_resp.Return(blockchain_manager.GetMainChain().Pool.GetBlockEvents(address), nil)
+	return x_resp.Return(node.GetMainChain().Pool.GetBlockEvents(address), nil)
 }
 
 func txStatus(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
@@ -53,7 +53,7 @@ func txStatus(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
 	}
 
 	// get account by address
-	account, err := blockchain_manager.GetMainChain().LastBlock().GetAccount(tx.GetFrom())
+	account, err := node.GetMainChain().LastBlock().GetAccount(tx.GetFrom())
 	if err != nil {
 		return x_resp.Return(nil, err)
 	}
