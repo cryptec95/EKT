@@ -5,7 +5,7 @@ import (
 	"encoding/hex"
 	"errors"
 
-	"github.com/EducationEKT/EKT/blockchain_manager"
+	"github.com/EducationEKT/EKT/node"
 	"github.com/EducationEKT/EKT/core/types"
 	"github.com/EducationEKT/EKT/core/userevent"
 )
@@ -17,7 +17,7 @@ func NewTransaction(transaction *userevent.Transaction) error {
 		if err != nil {
 			return err
 		}
-		currentBlock := blockchain_manager.GetMainChain().LastBlock()
+		currentBlock := node.GetMainChain().LastBlock()
 		var token types.Token
 		err = currentBlock.TokenTree.GetInterfaceValue(tokenAddress, &token)
 		if err != nil || token.Name == "" || token.Decimals <= 0 || token.Total <= 0 {
@@ -30,6 +30,6 @@ func NewTransaction(transaction *userevent.Transaction) error {
 	if bytes.EqualFold(transaction.GetFrom(), transaction.GetTo()) {
 		return errors.New("invalid address")
 	}
-	blockchain_manager.GetMainChain().NewTransaction(transaction)
+	node.GetMainChain().NewTransaction(transaction)
 	return nil
 }
