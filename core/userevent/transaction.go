@@ -1,6 +1,7 @@
 package userevent
 
 import (
+	"bytes"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -11,10 +12,17 @@ import (
 	"github.com/EducationEKT/EKT/db"
 )
 
-type Transactions []*Transaction
+const (
+	FailType_SUCCESS = iota
+	FailType_NO_GAS
+	FailType_Invalid_NONCE
+	FailType_NO_ENOUGH_AMOUNT
+)
+
+type Transactions []Transaction
+type Receipts []TransactionReceipt
 
 type Transaction struct {
-	EventType    string         `json:"EventType"`
 	From         types.HexBytes `json:"from"`
 	To           types.HexBytes `json:"to"`
 	TimeStamp    int64          `json:"time"` // UnixTimeStamp
@@ -26,6 +34,13 @@ type Transaction struct {
 	Sign         types.HexBytes `json:"sign"`
 }
 
+type TransactionReceipt struct {
+	TxId     types.HexBytes `json:"txId"`
+	Fee      int64          `json:"fee"`
+	Success  bool           `json:"success"`
+	FailType int            `json:"failType"`
+}
+
 type UserEventResult struct {
 	EventId string `json:"txId"`
 	Fee     int64  `json:"fee"`
@@ -35,7 +50,6 @@ type UserEventResult struct {
 
 func NewTransaction(from, to []byte, timestamp, amount, fee, nonce int64, data, tokenAddress string) *Transaction {
 	return &Transaction{
-		EventType:    TYPE_USEREVENT_TRANSACTION,
 		From:         from,
 		To:           to,
 		TimeStamp:    timestamp,
@@ -47,6 +61,15 @@ func NewTransaction(from, to []byte, timestamp, amount, fee, nonce int64, data, 
 	}
 }
 
+func NewTransactionReceipt(tx Transaction, success bool, failType int) TransactionReceipt {
+	return TransactionReceipt{
+		TxId:     tx.TxId(),
+		Success:  success,
+		Fee:      tx.Fee,
+		FailType: failType,
+	}
+}
+
 func NewUserEventResult(event IUserEvent, fee int64, success bool, failMessage string) *UserEventResult {
 	return &UserEventResult{
 		EventId: event.EventId(),
@@ -54,6 +77,11 @@ func NewUserEventResult(event IUserEvent, fee int64, success bool, failMessage s
 		Success: success,
 		FailMsg: failMessage,
 	}
+}
+
+func (receipt1 TransactionReceipt) EqualsTo(receipt2 TransactionReceipt) bool {
+	return receipt1.Fee == receipt2.Fee && receipt1.Success == receipt2.Success &&
+		receipt1.FailType == receipt2.FailType && bytes.EqualFold(receipt1.TxId, receipt2.TxId)
 }
 
 func (tx Transaction) Type() string {
@@ -130,9 +158,24 @@ func (transactions Transactions) Swap(i, j int) {
 	transactions[i], transactions[j] = transactions[j], transactions[i]
 }
 
+func (transactions Transactions) Bytes() []byte {
+	data, _ := json.Marshal(transactions)
+	return data
+}
+
+func (receipts Receipts) Bytes() []byte {
+	data, _ := json.Marshal(receipts)
+	return data
+}
+
 func (tx *Transaction) TransactionId() string {
 	txData, _ := json.Marshal(tx)
 	return hex.EncodeToString(crypto.Sha3_256(txData))
+}
+
+func (tx *Transaction) TxId() []byte {
+	txData, _ := json.Marshal(tx)
+	return crypto.Sha3_256(txData)
 }
 
 func (tx *Transaction) String() string {
