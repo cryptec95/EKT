@@ -5,9 +5,9 @@ import (
 	"encoding/hex"
 	"errors"
 
-	"github.com/EducationEKT/EKT/node"
 	"github.com/EducationEKT/EKT/core/types"
 	"github.com/EducationEKT/EKT/core/userevent"
+	"github.com/EducationEKT/EKT/node"
 )
 
 func NewTransaction(transaction *userevent.Transaction) error {
@@ -17,7 +17,7 @@ func NewTransaction(transaction *userevent.Transaction) error {
 		if err != nil {
 			return err
 		}
-		currentBlock := node.GetMainChain().LastBlock()
+		currentBlock := node.GetMainChain().LastHeader()
 		var token types.Token
 		err = currentBlock.TokenTree.GetInterfaceValue(tokenAddress, &token)
 		if err != nil || token.Name == "" || token.Decimals <= 0 || token.Total <= 0 {

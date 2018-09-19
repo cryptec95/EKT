@@ -35,8 +35,7 @@ func SuggestFee() int64 {
 /*
 	for delegate node
 */
-
-func BlockFromPeer(block blockchain.Header) {
+func BlockFromPeer(block blockchain.Block) {
 	fullNode.BlockFromPeer(block)
 }
 
