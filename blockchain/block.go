@@ -34,29 +34,35 @@ func GetBlockFromBytes(data []byte) *Block {
 }
 
 func (block Block) GetTransactions() []userevent.Transaction {
-	body, err := block.Miner.GetDBValue(hex.EncodeToString(block.Header.TxHash))
-	if err != nil {
-		return nil
+	if len(block.Transactions) == 0 {
+		body, err := block.Miner.GetDBValue(hex.EncodeToString(block.Header.TxHash))
+		if err != nil {
+			return nil
+		}
+		var txs []userevent.Transaction
+		err = json.Unmarshal(body, &txs)
+		if err != nil {
+			return nil
+		}
+		block.Transactions = txs
 	}
-	var txs []userevent.Transaction
-	err = json.Unmarshal(body, &txs)
-	if err != nil {
-		return nil
-	}
-	return txs
+	return block.Transactions
 }
 
 func (block Block) GetTxReceipts() []userevent.TransactionReceipt {
-	body, err := block.Miner.GetDBValue(hex.EncodeToString(block.Header.ReceiptHash))
-	if err != nil {
-		return nil
+	if len(block.TransactionReceipts) == 0 {
+		body, err := block.Miner.GetDBValue(hex.EncodeToString(block.Header.ReceiptHash))
+		if err != nil {
+			return nil
+		}
+		var receipts []userevent.TransactionReceipt
+		err = json.Unmarshal(body, &receipts)
+		if err != nil {
+			return nil
+		}
+		block.TransactionReceipts = receipts
 	}
-	var receipts []userevent.TransactionReceipt
-	err = json.Unmarshal(body, &receipts)
-	if err != nil {
-		return nil
-	}
-	return receipts
+	return block.TransactionReceipts
 }
 
 func (block Block) GetHeader() *Header {
@@ -76,7 +82,6 @@ func (block *Block) NewTransaction(tx userevent.Transaction) {
 	if len(tx.From) != 32 || len(tx.To) != 32 {
 		return
 	}
-
 	receipt := block.Header.NewTransaction(tx)
 	if receipt.Success {
 		block.Header.TotalFee += tx.Fee
