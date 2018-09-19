@@ -15,10 +15,10 @@ import (
 
 func init() {
 	x_router.Post("/block/api/last", lastBlock)
-	x_router.Get("/block/api/blockHeaderByHeight", blockHeaderByHeight)
+	x_router.Get("/block/api/getHeaderByHeight", getHeaderByHeight)
 	x_router.Get("/block/api/getHeaderByHash", getHeaderByHash)
-	x_router.Get("/block/api/blockByHeight", getBlockByHeight)
-	x_router.Post("/block/api/newBlock", broadcast, newBlock)
+	x_router.Get("/block/api/getBlockByHeight", getBlockByHeight)
+	x_router.Post("/block/api/blockFromPeer", broadcast, blockFromPeer)
 }
 
 func getBlockByHeight(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
@@ -43,7 +43,7 @@ func lastBlock(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
 	return x_resp.Return(encapdb.GetLastHeader(1), nil)
 }
 
-func blockHeaderByHeight(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
+func getHeaderByHeight(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
 	bc := node.GetMainChain()
 	height := req.MustGetInt64("height")
 	if bc.GetLastHeight() < height {
@@ -52,11 +52,11 @@ func blockHeaderByHeight(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) 
 	return x_resp.Return(encapdb.GetHeaderByHeight(1, height), nil)
 }
 
-func newBlock(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
-	var block blockchain.Header
+func blockFromPeer(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
+	var block blockchain.Block
 	json.Unmarshal(req.Body, &block)
 	lastHeight := node.GetMainChain().GetLastHeight()
-	if lastHeight+1 != block.Height {
+	if lastHeight+1 != block.GetHeader().Height {
 		return x_resp.Fail(-1, "error invalid height", nil), nil
 	}
 	node.BlockFromPeer(block)

@@ -20,7 +20,7 @@ func userInfo(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
 	if err != nil {
 		return x_resp.Return(nil, err)
 	}
-	account, err := node.GetMainChain().LastBlock().GetAccount(hexAddress)
+	account, err := node.GetMainChain().LastHeader().GetAccount(hexAddress)
 	if err != nil {
 		return x_resp.Return(nil, err)
 	}
@@ -34,7 +34,7 @@ func userNonce(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
 		return x_resp.Return(nil, err)
 	}
 	// get user nonce by user stat tree
-	account, err := node.GetMainChain().LastBlock().GetAccount(address)
+	account, err := node.GetMainChain().LastHeader().GetAccount(address)
 	if err != nil {
 		return x_resp.Return(nil, err)
 	}
