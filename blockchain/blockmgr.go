@@ -87,20 +87,21 @@ func (manager *BlockManager) SetBlockStatusByHeight(height, nanoSecond int64) {
 }
 
 //将指定区块插入，默认是100
-func (manager *BlockManager) Insert(block Header) {
-	//hash := hex.EncodeToString(block.CurrentHash)
-	//if _, exist := manager.Blocks.Load(hash); exist {
-	//	return
-	//} else {
-	//	manager.Blocks.Store(hash, block)
-	//	manager.BlockStatus.Store(hash, BLOCK_TO_BE_HANDLE)
-	//}
+func (manager *BlockManager) Insert(block Block) {
+	hash := hex.EncodeToString(block.Hash)
+	if _, exist := manager.Blocks.Load(hash); exist {
+		return
+	} else {
+		manager.Blocks.Store(hash, block)
+		manager.BlockStatus.Store(hash, BLOCK_TO_BE_HANDLE)
+	}
 }
 
-func (manager *BlockManager) GetBlock(hash []byte) (Header, bool) {
-	block, exist := manager.Blocks.Load(hex.EncodeToString(hash))
+func (manager *BlockManager) GetBlock(hash []byte) *Block {
+	b, exist := manager.Blocks.Load(hex.EncodeToString(hash))
 	if !exist {
-		return Header{}, exist
+		return nil
 	}
-	return block.(Header), exist
+	block := b.(Block)
+	return &block
 }
