@@ -4,13 +4,11 @@ import (
 	"bytes"
 	"encoding/hex"
 	"encoding/json"
-	"fmt"
 	"strings"
 	"sync"
 
 	"github.com/EducationEKT/EKT/core/types"
 	"github.com/EducationEKT/EKT/crypto"
-	"github.com/EducationEKT/EKT/log"
 )
 
 var VoteResultManager VoteResults
@@ -42,20 +40,25 @@ func NewVoteResults() VoteResults {
 	}
 }
 
-func (vote VoteResults) GetVoteResults(hash string) Votes {
-	obj, exist := vote.voteResults.Load(hash)
+func (vote1 BlockVote) Equal(vote2 BlockVote) bool {
+	return vote1.Peer.Equal(vote2.Peer) && vote1.BlockchainId == vote2.BlockchainId && bytes.EqualFold(vote1.BlockHash, vote2.BlockHash) &&
+		vote1.BlockHeight == vote2.BlockHeight && vote1.VoteResult == vote2.VoteResult
+}
+
+func (voteResults VoteResults) GetVoteResults(hash string) Votes {
+	obj, exist := voteResults.voteResults.Load(hash)
 	if exist {
 		return obj.(Votes)
 	}
 	return nil
 }
 
-func (vote VoteResults) SetVoteResults(hash string, votes Votes) {
-	vote.voteResults.Store(hash, votes)
+func (voteResults VoteResults) SetVoteResults(hash string, votes Votes) {
+	voteResults.voteResults.Store(hash, votes)
 }
 
 func (vote BlockVote) Validate() bool {
-	pubKey, err := crypto.RecoverPubKey(crypto.Sha3_256(vote.Data()), vote.Signature)
+	pubKey, err := crypto.RecoverPubKey(crypto.Sha3_256(vote.Bytes()), vote.Signature)
 	if err != nil {
 		return false
 	}
@@ -65,18 +68,8 @@ func (vote BlockVote) Validate() bool {
 	return true
 }
 
-func (vote BlockVote) Data() []byte {
-	str := fmt.Sprintf(`{"blockHash": "%s", "blockHeight": %d, "voteResult": %v, "peer": %s}`,
-		hex.EncodeToString(vote.BlockHash), vote.BlockHeight, vote.VoteResult, vote.Peer.String())
-	return crypto.Sha3_256([]byte(str))
-}
-
-func (vote BlockVote) Value() string {
-	return string(vote.Data())
-}
-
 func (vote *BlockVote) Sign(PrivKey []byte) error {
-	signature, err := crypto.Crypto(crypto.Sha3_256(vote.Data()), PrivKey)
+	signature, err := crypto.Crypto(crypto.Sha3_256(vote.Bytes()), PrivKey)
 	if err != nil {
 		return err
 	} else {
@@ -90,29 +83,29 @@ func (vote BlockVote) Bytes() []byte {
 	return data
 }
 
-func (vote VoteResults) Insert(voteResult BlockVote) {
-	votes := vote.GetVoteResults(hex.EncodeToString(voteResult.BlockHash))
+func (voteResults VoteResults) Insert(vote BlockVote) {
+	votes := voteResults.GetVoteResults(hex.EncodeToString(vote.BlockHash))
 	if len(votes) > 0 {
 		for _, _vote := range votes {
-			if strings.EqualFold(_vote.Value(), voteResult.Value()) {
+			if vote.Equal(_vote) {
 				return
 			}
 		}
-		votes = append(votes, voteResult)
+		votes = append(votes, vote)
 	} else {
 		votes = make([]BlockVote, 0)
-		votes = append(votes, voteResult)
+		votes = append(votes, vote)
 	}
-	vote.SetVoteResults(hex.EncodeToString(voteResult.BlockHash), votes)
+	voteResults.SetVoteResults(hex.EncodeToString(vote.BlockHash), votes)
 }
 
-func (vote VoteResults) Number(blockHash []byte) int {
-	votes := vote.GetVoteResults(hex.EncodeToString(blockHash))
+func (voteResults VoteResults) Number(blockHash []byte) int {
+	votes := voteResults.GetVoteResults(hex.EncodeToString(blockHash))
 	return len(votes)
 }
 
-func (vote VoteResults) Broadcasted(blockHash []byte) bool {
-	_, exist := vote.broadcast.Load(hex.EncodeToString(blockHash))
+func (voteResults VoteResults) Broadcasted(blockHash []byte) bool {
+	_, exist := voteResults.broadcast.Load(hex.EncodeToString(blockHash))
 	return exist
 }
 
@@ -135,7 +128,6 @@ func (vote Votes) Bytes() []byte {
 
 func (votes Votes) Validate() bool {
 	if len(votes) == 0 {
-		log.Debug("Votes.Validate: length of votes is 0, return false.")
 		return false
 	}
 	for i, vote := range votes {
@@ -143,10 +135,8 @@ func (votes Votes) Validate() bool {
 			return false
 		}
 		for j, _vote := range votes {
-			if i != j {
-				if bytes.Equal(vote.Data(), _vote.Data()) {
-					return false
-				}
+			if i != j && vote.Equal(_vote) {
+				return false
 			}
 		}
 	}

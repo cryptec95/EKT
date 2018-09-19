@@ -16,7 +16,7 @@ type IBlock interface {
 }
 
 type Block struct {
-	Header              *Header                `json:"-"`
+	header              *Header                `json:"-"`
 	Hash                types.HexBytes         `json:"hash"`
 	Signature           types.HexBytes         `json:"signature"`
 	Miner               types.Peer             `json:"miner"`
@@ -35,7 +35,7 @@ func GetBlockFromBytes(data []byte) *Block {
 
 func (block Block) GetTransactions() []userevent.Transaction {
 	if len(block.Transactions) == 0 {
-		body, err := block.Miner.GetDBValue(hex.EncodeToString(block.Header.TxHash))
+		body, err := block.Miner.GetDBValue(hex.EncodeToString(block.header.TxHash))
 		if err != nil {
 			return nil
 		}
@@ -51,7 +51,7 @@ func (block Block) GetTransactions() []userevent.Transaction {
 
 func (block Block) GetTxReceipts() []userevent.TransactionReceipt {
 	if len(block.TransactionReceipts) == 0 {
-		body, err := block.Miner.GetDBValue(hex.EncodeToString(block.Header.ReceiptHash))
+		body, err := block.Miner.GetDBValue(hex.EncodeToString(block.header.ReceiptHash))
 		if err != nil {
 			return nil
 		}
@@ -66,54 +66,61 @@ func (block Block) GetTxReceipts() []userevent.TransactionReceipt {
 }
 
 func (block Block) GetHeader() *Header {
-	if block.Header != nil {
-		return block.Header
+	if block.header != nil {
+		return block.header
 	} else {
 		data, err := block.Miner.GetDBValue(hex.EncodeToString(block.Hash))
 		if err != nil {
 			return nil
 		}
-		header := FromBytes2Header(data)
-		return header
+		block.header = FromBytes2Header(data)
 	}
+	return block.header
 }
 
 func (block *Block) NewTransaction(tx userevent.Transaction) {
 	if len(tx.From) != 32 || len(tx.To) != 32 {
 		return
 	}
-	receipt := block.Header.NewTransaction(tx)
+	receipt := block.header.NewTransaction(tx)
 	if receipt.Success {
-		block.Header.TotalFee += tx.Fee
+		block.header.TotalFee += tx.Fee
 	}
 	block.Transactions = append(block.Transactions, tx)
 	block.TransactionReceipts = append(block.TransactionReceipts, receipt)
 }
 
 func (block *Block) Finish() {
-	block.Header.UpdateMiner()
-	block.Header.TxHash = crypto.Sha3_256(block.Transactions.Bytes())
-	block.Header.ReceiptHash = crypto.Sha3_256(block.TransactionReceipts.Bytes())
-	block.Hash = block.Header.CaculateHash()
+	block.header.UpdateMiner()
+	block.header.TxHash = crypto.Sha3_256(block.Transactions.Bytes())
+	block.header.ReceiptHash = crypto.Sha3_256(block.TransactionReceipts.Bytes())
+	block.Hash = block.header.CaculateHash()
 }
 
-func (block *Block) Sign(privKey []byte) {
-	block.Signature, _ = crypto.Crypto(block.Hash, privKey)
+func (block *Block) Sign(privKey []byte) error {
+	sign, err := crypto.Crypto(block.Hash, privKey)
+	block.Signature = sign
+	return err
+}
+
+func (block Block) Bytes() []byte {
+	data, _ := json.Marshal(block)
+	return data
 }
 
 func CreateGenesisBlock(accounts []types.Account) Block {
 	header := GenesisHeader(accounts)
 	block := Block{
-		Header: header,
+		header: header,
 	}
 	return block
 }
 
-func CreateBlock(last Block, peer types.Peer) Block {
+func CreateBlock(last Header, peer types.Peer) *Block {
 	coinbase, _ := hex.DecodeString(peer.Account)
-	header := NewHeader(*last.Header, last.Hash, coinbase)
-	return Block{
-		Header:              header,
+	header := NewHeader(last, last.CaculateHash(), coinbase)
+	return &Block{
+		header:              header,
 		Miner:               peer,
 		Transactions:        make([]userevent.Transaction, 0),
 		TransactionReceipts: make([]userevent.TransactionReceipt, 0),

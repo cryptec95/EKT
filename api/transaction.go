@@ -53,7 +53,7 @@ func txStatus(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
 	}
 
 	// get account by address
-	account, err := node.GetMainChain().LastBlock().GetAccount(tx.GetFrom())
+	account, err := node.GetMainChain().LastHeader().GetAccount(tx.GetFrom())
 	if err != nil {
 		return x_resp.Return(nil, err)
 	}

@@ -24,7 +24,7 @@ func NewFullMode(config conf.EKTConf) *FullNode {
 		blockchain: blockchain.NewBlockChain(),
 		client:     ektclient.NewClient(param.MainChainDelegateNode),
 	}
-	node.dbft = consensus.NewDbftConsensus(node.blockchain)
+	node.dbft = consensus.NewDbftConsensus(node.blockchain, node.client)
 	return node
 }
 
@@ -42,7 +42,7 @@ func (node FullNode) recoverFromDB() {
 	node.dbft.RecoverFromDB()
 }
 
-func (node FullNode) BlockFromPeer(block blockchain.Header) {
+func (node FullNode) BlockFromPeer(block blockchain.Block) {
 	return
 }
 
