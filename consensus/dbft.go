@@ -426,6 +426,7 @@ func (dbft DbftConsensus) SaveBlock(block blockchain.Block, votes blockchain.Vot
 	encapdb.SetVoteResults(dbft.Blockchain.ChainId, hex.EncodeToString(block.Hash), votes)
 	encapdb.SetBlockByHeight(dbft.Blockchain.ChainId, block.GetHeader().Height, block)
 	encapdb.SetHeaderByHeight(dbft.Blockchain.ChainId, block.GetHeader().Height, *block.GetHeader())
+	encapdb.SetLastHeader(dbft.Blockchain.ChainId, *block.GetHeader())
 	dbft.Blockchain.SetLastBlock(*block.GetHeader())
 	dbft.Blockchain.NotifyPool(block.GetTransactions())
 }
