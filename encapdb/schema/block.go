@@ -11,5 +11,5 @@ func LastHeaderKey(chainId int64) []byte {
 }
 
 func GetBlockByHeightKey(chainId, height int64) []byte {
-	return []byte(fmt.Sprint(`GetHeaderByHeight: _%d_%d`, chainId, height))
+	return []byte(fmt.Sprint(`GetBlockByHeight: _%d_%d`, chainId, height))
 }
