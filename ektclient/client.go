@@ -2,6 +2,7 @@ package ektclient
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/EducationEKT/EKT/blockchain"
 	"github.com/EducationEKT/EKT/core/types"
 	"github.com/EducationEKT/EKT/util"
@@ -20,6 +21,8 @@ type IClient interface {
 
 	// delegate
 	BroadcastBlock(block blockchain.Block)
+	SendVote(vote blockchain.PeerBlockVote)
+	SendVoteResult(votes blockchain.Votes)
 }
 
 type Client struct {
@@ -90,6 +93,20 @@ func (client Client) BroadcastBlock(block blockchain.Block) {
 	for _, peer := range client.peers {
 		url := util.StringJoint("http://", peer.Address, ":", strconv.Itoa(int(peer.Port)), "/block/api/blockFromPeer")
 		go util.HttpPost(url, block.Bytes())
+	}
+}
+
+func (client Client) SendVote(vote blockchain.PeerBlockVote) {
+	for _, peer := range client.peers {
+		url := fmt.Sprintf(`http://%s:%d/vote/api/vote`, peer.Address, peer.Port)
+		go util.HttpPost(url, vote.Bytes())
+	}
+}
+
+func (client Client) SendVoteResult(votes blockchain.Votes) {
+	for _, peer := range client.peers {
+		url := fmt.Sprintf(`http://%s:%d/vote/api/voteResult`, peer.Address, peer.Port)
+		go util.HttpPost(url, votes.Bytes())
 	}
 }
 

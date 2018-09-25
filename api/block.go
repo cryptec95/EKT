@@ -40,7 +40,6 @@ func getHeaderByHash(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
 }
 
 func lastBlock(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
-	fmt.Println(node.GetMainChain().GetLastHeight())
 	return x_resp.Return(node.GetMainChain().LastHeader(), nil)
 }
 
