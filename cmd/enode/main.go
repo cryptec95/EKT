@@ -9,10 +9,10 @@ import (
 
 	_ "github.com/EducationEKT/EKT/api"
 
-	"github.com/EducationEKT/EKT/node"
 	"github.com/EducationEKT/EKT/conf"
 	"github.com/EducationEKT/EKT/db"
 	"github.com/EducationEKT/EKT/log"
+	"github.com/EducationEKT/EKT/node"
 	"github.com/EducationEKT/EKT/param"
 
 	"github.com/EducationEKT/xserver/x_http"
@@ -32,7 +32,7 @@ func init() {
 	)
 	flag.BoolVar(&help, "h", false, "this help")
 	flag.BoolVar(&ver, "v", false, "show version and exit")
-	flag.StringVar(&m, "m", "full", "specific node node: full sync OR fast sync OR delegate")
+	flag.StringVar(&m, "m", "adaptive", "specific node node: full sync OR fast sync OR delegate")
 	flag.StringVar(&cfg, "c", "genesis.json", "set genesis.json file and start")
 	flag.Parse()
 

@@ -8,6 +8,8 @@ import (
 	"github.com/EducationEKT/EKT/crypto"
 )
 
+const EMPTY_TX = "ca4510738395af1429224dd785675309c344b2b549632e20275c69b15ed1d210"
+
 type IBlock interface {
 	GetHeader() Header
 	GetTransactions() []userevent.Transaction
@@ -34,8 +36,10 @@ func GetBlockFromBytes(data []byte) *Block {
 }
 
 func (block Block) GetTransactions() []userevent.Transaction {
-	if len(block.Transactions) == 0 {
-		body, err := block.Miner.GetDBValue(hex.EncodeToString(block.header.TxHash))
+	if hex.EncodeToString(block.GetHeader().TxHash) == EMPTY_TX {
+		return []userevent.Transaction{}
+	} else if len(block.Transactions) == 0 {
+		body, err := block.Miner.GetDBValue(hex.EncodeToString(block.GetHeader().TxHash))
 		if err != nil {
 			return nil
 		}
@@ -50,7 +54,9 @@ func (block Block) GetTransactions() []userevent.Transaction {
 }
 
 func (block Block) GetTxReceipts() []userevent.TransactionReceipt {
-	if len(block.TransactionReceipts) == 0 {
+	if hex.EncodeToString(block.GetHeader().TxHash) == EMPTY_TX {
+		return []userevent.TransactionReceipt{}
+	} else if len(block.TransactionReceipts) == 0 {
 		body, err := block.Miner.GetDBValue(hex.EncodeToString(block.header.ReceiptHash))
 		if err != nil {
 			return nil
