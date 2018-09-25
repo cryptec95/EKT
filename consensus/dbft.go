@@ -71,7 +71,7 @@ func (dbft DbftConsensus) BlockFromPeer(ctxlog *ctxlog.ContextLog, block blockch
 	// 判断此区块是否是一个interval之前打包的，如果是则放弃vote
 	// unit： ms    单位：ms
 	blockLatencyTime := int(time.Now().UnixNano()/1e6 - header.Timestamp) // 从节点打包到当前节点的延迟，单位ms
-	blockInterval := int(blockchain.BackboneBlockInterval / 1e6)          // 当前链的打包间隔，单位nanoSecond,计算为ms
+	blockInterval := int(blockchain.BackboneBlockInterval * 4 / 3)        // 当前链的打包间隔，单位nanoSecond,计算为ms
 	if blockLatencyTime > blockInterval {
 		ctxlog.Log("More than an interval", true)
 		dbft.BlockManager.SetBlockStatus(header.CaculateHash(), blockchain.BLOCK_ERROR_BROADCAST_TIME)

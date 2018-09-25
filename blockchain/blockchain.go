@@ -54,7 +54,7 @@ func (chain *BlockChain) GetLastHeight() int64 {
 }
 
 func (chain *BlockChain) PackTime() time.Duration {
-	return BackboneBlockInterval
+	return BackboneBlockInterval - 500*time.Millisecond
 }
 
 func (chain *BlockChain) PackTransaction(block *Block) {
