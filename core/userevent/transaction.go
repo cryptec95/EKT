@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"strings"
 
 	"github.com/EducationEKT/EKT/core/types"
@@ -150,6 +151,11 @@ func (tx *Transaction) TransactionId() string {
 func (tx *Transaction) TxId() []byte {
 	txData, _ := json.Marshal(tx)
 	return crypto.Sha3_256(txData)
+}
+
+func (tx *Transaction) String() string {
+	return fmt.Sprintf(`{"from": "%s", "to": "%s", "time": %d, "amount": %d, "fee": %d, "nonce": %d, "data": "%s", "tokenAddress": "%s"}`,
+		hex.EncodeToString(tx.From), hex.EncodeToString(tx.To), tx.TimeStamp, tx.Amount, tx.Fee, tx.Nonce, tx.Data, tx.TokenAddress)
 }
 
 func (tx Transaction) Bytes() []byte {
