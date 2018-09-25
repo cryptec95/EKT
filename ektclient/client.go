@@ -98,23 +98,26 @@ func (client Client) GetVotesByBlockHash(hash string) blockchain.Votes {
 }
 
 func (client Client) BroadcastBlock(block blockchain.Block) {
+	data := block.Bytes()
 	for _, peer := range client.peers {
 		url := util.StringJoint("http://", peer.Address, ":", strconv.Itoa(int(peer.Port)), "/block/api/blockFromPeer")
-		go util.HttpPost(url, block.Bytes())
+		go util.HttpPost(url, data)
 	}
 }
 
 func (client Client) SendVote(vote blockchain.PeerBlockVote) {
+	data := vote.Bytes()
 	for _, peer := range client.peers {
 		url := util.StringJoint("http://", peer.Address, ":", strconv.Itoa(int(peer.Port)), "/vote/api/vote")
-		go util.HttpPost(url, vote.Bytes())
+		go util.HttpPost(url, data)
 	}
 }
 
 func (client Client) SendVoteResult(votes blockchain.Votes) {
+	data := votes.Bytes()
 	for _, peer := range client.peers {
 		url := util.StringJoint("http://", peer.Address, ":", strconv.Itoa(int(peer.Port)), "/vote/api/voteResult")
-		go util.HttpPost(url, votes.Bytes())
+		go util.HttpPost(url, data)
 	}
 }
 
