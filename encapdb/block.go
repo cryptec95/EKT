@@ -1,7 +1,6 @@
 package encapdb
 
 import (
-	"encoding/json"
 	"github.com/EducationEKT/EKT/blockchain"
 	"github.com/EducationEKT/EKT/core/types"
 	"github.com/EducationEKT/EKT/db"
@@ -18,8 +17,7 @@ func GetBlockByHeight(chainId, height int64) *blockchain.Block {
 }
 func SetBlockByHeight(chainId, height int64, block blockchain.Block) {
 	key := schema.GetBlockByHeightKey(chainId, height)
-	data, _ := json.Marshal(block)
-	db.GetDBInst().Set(key, data)
+	db.GetDBInst().Set(key, block.Bytes())
 }
 
 func GetHeaderByHeight(chainId, height int64) *blockchain.Header {

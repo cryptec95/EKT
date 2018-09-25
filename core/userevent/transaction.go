@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/hex"
 	"encoding/json"
-	"fmt"
 	"strings"
 
 	"github.com/EducationEKT/EKT/core/types"
@@ -41,13 +40,6 @@ type TransactionReceipt struct {
 	FailType int            `json:"failType"`
 }
 
-type UserEventResult struct {
-	EventId string `json:"txId"`
-	Fee     int64  `json:"fee"`
-	Success bool   `json:"success"`
-	FailMsg string `json:"failMsg"`
-}
-
 func NewTransaction(from, to []byte, timestamp, amount, fee, nonce int64, data, tokenAddress string) *Transaction {
 	return &Transaction{
 		From:         from,
@@ -67,15 +59,6 @@ func NewTransactionReceipt(tx Transaction, success bool, failType int) Transacti
 		Success:  success,
 		Fee:      tx.Fee,
 		FailType: failType,
-	}
-}
-
-func NewUserEventResult(event IUserEvent, fee int64, success bool, failMessage string) *UserEventResult {
-	return &UserEventResult{
-		EventId: event.EventId(),
-		Fee:     fee,
-		Success: success,
-		FailMsg: failMessage,
 	}
 }
 
@@ -137,15 +120,6 @@ func FromBytesToTransaction(data []byte) *Transaction {
 	return &tx
 }
 
-func (usereventResult *UserEventResult) ToBytes() []byte {
-	data, _ := json.Marshal(usereventResult)
-	return data
-}
-
-func (usereventResult *UserEventResult) TxResult() (bool, string) {
-	return usereventResult.Success, usereventResult.FailMsg
-}
-
 func (transactions Transactions) Len() int {
 	return len(transactions)
 }
@@ -176,11 +150,6 @@ func (tx *Transaction) TransactionId() string {
 func (tx *Transaction) TxId() []byte {
 	txData, _ := json.Marshal(tx)
 	return crypto.Sha3_256(txData)
-}
-
-func (tx *Transaction) String() string {
-	return fmt.Sprintf(`{"from": "%s", "to": "%s", "time": %d, "amount": %d, "fee": %d, "nonce": %d, "data": "%s", "tokenAddress": "%s"}`,
-		hex.EncodeToString(tx.From), hex.EncodeToString(tx.To), tx.TimeStamp, tx.Amount, tx.Fee, tx.Nonce, tx.Data, tx.TokenAddress)
 }
 
 func (tx Transaction) Bytes() []byte {

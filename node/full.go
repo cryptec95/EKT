@@ -1,7 +1,6 @@
 package node
 
 import (
-	"fmt"
 	"github.com/EducationEKT/EKT/blockchain"
 	"github.com/EducationEKT/EKT/conf"
 	"github.com/EducationEKT/EKT/consensus"
@@ -29,7 +28,6 @@ func NewFullMode(config conf.EKTConf) *FullNode {
 }
 
 func (node FullNode) StartNode() {
-	fmt.Println("Start full sync node")
 	node.recoverFromDB()
 	node.loop()
 }
@@ -73,17 +71,13 @@ func (node FullNode) loop() {
 		if fail {
 			if failTime >= 3 {
 				time.Sleep(blockchain.BackboneBlockInterval)
-			} else {
-				time.Sleep(blockchain.BackboneBlockInterval / 5)
 			}
 		}
 
 		if node.dbft.SyncHeight(height) {
-			fmt.Println("Synchronized block at", height, ".")
 			height++
 			fail, failTime = false, 0
 		} else {
-			fmt.Println("Get block failed")
 			fail, failTime = true, failTime+1
 		}
 	}

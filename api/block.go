@@ -27,7 +27,10 @@ func getBlockByHeight(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
 	if block == nil {
 		return x_resp.Fail(-1, "not found", nil), nil
 	}
-	return x_resp.Return(block, nil)
+	return &x_resp.XRespContainer{
+		HttpCode: 200,
+		Body:     block.Bytes(),
+	}, nil
 }
 
 func getHeaderByHash(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {

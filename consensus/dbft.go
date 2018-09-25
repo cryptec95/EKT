@@ -347,12 +347,15 @@ func (dbft DbftConsensus) SyncHeight(height int64) bool {
 		return true
 	}
 	block := dbft.Client.GetBlockByHeight(height)
+	if block == nil {
+		return false
+	}
 	header := block.GetHeader()
 	if header == nil || header.Height != height {
 		return false
 	} else {
 		votes := dbft.Client.GetVotesByBlockHash(hex.EncodeToString(header.CaculateHash()))
-		if votes == nil || votes.Validate() {
+		if votes == nil || !votes.Validate() {
 			return false
 		}
 		transactions := block.GetTransactions()

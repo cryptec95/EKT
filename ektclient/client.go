@@ -2,7 +2,6 @@ package ektclient
 
 import (
 	"encoding/json"
-	"fmt"
 	"github.com/EducationEKT/EKT/blockchain"
 	"github.com/EducationEKT/EKT/core/types"
 	"github.com/EducationEKT/EKT/util"
@@ -82,7 +81,16 @@ func (client Client) GetVotesByBlockHash(hash string) blockchain.Votes {
 		if err != nil {
 			continue
 		}
-		if votes := GetVotesFromResp(body); len(votes) != 0 {
+		var result x_resp.XRespBody
+		err = json.Unmarshal(body, &result)
+		if err != nil || result.Status < 0 || result.Result == nil {
+			continue
+		}
+		data, err := json.Marshal(result.Result)
+		if err != nil {
+			continue
+		}
+		if votes := GetVotesFromResp(data); len(votes) != 0 {
 			return votes
 		}
 	}
@@ -98,29 +106,20 @@ func (client Client) BroadcastBlock(block blockchain.Block) {
 
 func (client Client) SendVote(vote blockchain.PeerBlockVote) {
 	for _, peer := range client.peers {
-		url := fmt.Sprintf(`http://%s:%d/vote/api/vote`, peer.Address, peer.Port)
+		url := util.StringJoint("http://", peer.Address, ":", strconv.Itoa(int(peer.Port)), "/vote/api/vote")
 		go util.HttpPost(url, vote.Bytes())
 	}
 }
 
 func (client Client) SendVoteResult(votes blockchain.Votes) {
 	for _, peer := range client.peers {
-		url := fmt.Sprintf(`http://%s:%d/vote/api/voteResult`, peer.Address, peer.Port)
+		url := util.StringJoint("http://", peer.Address, ":", strconv.Itoa(int(peer.Port)), "/vote/api/voteResult")
 		go util.HttpPost(url, votes.Bytes())
 	}
 }
 
 func GetVotesFromResp(body []byte) blockchain.Votes {
-	var resp x_resp.XRespBody
-	err := json.Unmarshal(body, &resp)
-	if err != nil || resp.Status != 0 {
-		return nil
-	}
-	data, err := json.Marshal(resp.Result)
-	if err == nil {
-		var votes blockchain.Votes
-		err = json.Unmarshal(data, &votes)
-		return votes
-	}
-	return nil
+	var votes blockchain.Votes
+	json.Unmarshal(body, &votes)
+	return votes
 }
