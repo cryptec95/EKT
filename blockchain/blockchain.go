@@ -89,12 +89,6 @@ func (chain *BlockChain) PackTransaction(block *Block) {
 							numTx++
 							header.NewTransaction(*tx)
 						}
-					case userevent.TYPE_USEREVENT_PUBLIC_TOKEN:
-						issueToken, ok := event.(*userevent.TokenIssue)
-						if ok {
-							numTx++
-							header.IssueToken(*issueToken)
-						}
 					}
 				}
 			}

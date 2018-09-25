@@ -2,7 +2,6 @@ package blockchain
 
 import (
 	"bytes"
-	"encoding/hex"
 	"encoding/json"
 	"time"
 
@@ -183,46 +182,6 @@ func (header *Header) UpdateMiner() {
 	if err != nil {
 		log.Crit("Update miner failed, %s", err.Error())
 	}
-}
-
-func (header *Header) Sign(privKey []byte) error {
-	return nil
-}
-
-func (header *Header) IssueToken(event userevent.TokenIssue) *userevent.UserEventResult {
-	account, err := header.GetAccount(event.GetFrom())
-
-	if err != nil {
-		eventResult := userevent.NewUserEventResult(&event, 0, false, err.Error())
-		return eventResult
-	}
-
-	if account.GetNonce()+1 != event.GetNonce() {
-		eventResult := userevent.NewUserEventResult(&event, 0, false, "Invalid nonce")
-		return eventResult
-	}
-
-	fee := int64(500 * 1e8)
-	if account.Amount < fee {
-		eventResult := userevent.NewUserEventResult(&event, 0, false, "no enough fee")
-		return eventResult
-	}
-
-	account.Amount -= fee
-	if len(account.Balances) == 0 {
-		account.Balances = make(map[string]int64)
-	}
-	total := Decimals(event.Token.Decimals) * event.Token.Total
-	account.Balances[hex.EncodeToString(event.Token.Address())] = total
-	account.Nonce++
-
-	header.TotalFee += fee
-
-	header.TokenTree.MustInsert(event.Token.Address(), event.Token.Bytes())
-	header.StatTree.MustInsert(event.GetFrom(), account.ToBytes())
-	eventResult := userevent.NewUserEventResult(&event, fee, true, "")
-
-	return eventResult
 }
 
 func Decimals(decimal int64) int64 {
