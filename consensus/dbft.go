@@ -2,7 +2,6 @@ package consensus
 
 import (
 	"encoding/hex"
-	"fmt"
 	"github.com/EducationEKT/EKT/ektclient"
 	"github.com/EducationEKT/EKT/encapdb"
 	"sync"
@@ -15,7 +14,6 @@ import (
 	"github.com/EducationEKT/EKT/db"
 	"github.com/EducationEKT/EKT/log"
 	"github.com/EducationEKT/EKT/param"
-	"github.com/EducationEKT/EKT/util"
 )
 
 type DbftConsensus struct {
@@ -140,10 +138,7 @@ func (dbft DbftConsensus) SendVote(header blockchain.Header) {
 
 	// 向其他节点发送签名后的vote信息
 	log.Info("Signed this vote, sending vote result to other peers.")
-	for _, peer := range dbft.Round.Peers {
-		url := fmt.Sprintf(`http://%s:%d/vote/api/vote`, peer.Address, peer.Port)
-		go util.HttpPost(url, vote.Bytes())
-	}
+	dbft.Client.SendVote(*vote)
 	log.Info("Send vote to other peer succeed.")
 }
 
@@ -316,16 +311,6 @@ func (dbft DbftConsensus) Pack(ctxlog *ctxlog.ContextLog) {
 	}
 }
 
-// 广播区块
-func (dbft DbftConsensus) broadcastBlock(block *blockchain.Header) {
-	log.Info("Broadcasting block to the other peers.")
-	data := block.Bytes()
-	for _, peer := range dbft.GetRound().Peers {
-		url := fmt.Sprintf(`http://%s:%d/block/api/newBlock`, peer.Address, peer.Port)
-		go util.HttpPost(url, data)
-	}
-}
-
 // 从db中recover数据
 func (dbft DbftConsensus) RecoverFromDB() {
 	header := encapdb.GetLastHeader(dbft.Blockchain.ChainId)
@@ -387,10 +372,7 @@ func (dbft DbftConsensus) VoteFromPeer(vote blockchain.PeerBlockVote) {
 	if dbft.VoteResults.Number(vote.Vote.BlockHash) > len(dbft.GetRound().Peers)/2 {
 		log.Info("BlockVoteDetail number more than half node, sending vote result to other nodes.")
 		votes := dbft.VoteResults.GetVoteResults(hex.EncodeToString(vote.Vote.BlockHash))
-		for _, peer := range dbft.GetRound().Peers {
-			url := fmt.Sprintf(`http://%s:%d/vote/api/voteResult`, peer.Address, peer.Port)
-			go util.HttpPost(url, votes.Bytes())
-		}
+		dbft.Client.SendVoteResult(votes)
 	}
 }
 
