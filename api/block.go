@@ -40,7 +40,8 @@ func getHeaderByHash(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
 }
 
 func lastBlock(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
-	return x_resp.Return(encapdb.GetLastHeader(1), nil)
+	fmt.Println(node.GetMainChain().GetLastHeight())
+	return x_resp.Return(node.GetMainChain().LastHeader(), nil)
 }
 
 func getHeaderByHeight(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
@@ -49,7 +50,7 @@ func getHeaderByHeight(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
 	if bc.GetLastHeight() < height {
 		return nil, x_err.New(-404, fmt.Sprintf("Heigth %d is heigher than current height, current height is %d \n ", height, bc.GetLastHeight()))
 	}
-	return x_resp.Return(encapdb.GetHeaderByHeight(1, height), nil)
+	return x_resp.Return(node.GetBlockByHeight(1, height), nil)
 }
 
 func blockFromPeer(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {

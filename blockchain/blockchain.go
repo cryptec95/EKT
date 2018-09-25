@@ -24,8 +24,9 @@ type BlockChain struct {
 	PackLock      sync.RWMutex
 }
 
-func NewBlockChain() *BlockChain {
+func NewBlockChain(chainId int64) *BlockChain {
 	return &BlockChain{
+		ChainId:       chainId,
 		Locker:        sync.RWMutex{},
 		currentLocker: sync.RWMutex{},
 		Pool:          pool.NewTxPool(),
@@ -39,11 +40,11 @@ func (chain *BlockChain) LastHeader() Header {
 	return chain.header
 }
 
-func (chain *BlockChain) SetLastBlock(block Header) {
+func (chain *BlockChain) SetLastHeader(header Header) {
 	chain.currentLocker.Lock()
 	defer chain.currentLocker.Unlock()
-	chain.header = block
-	chain.currentHeight = block.Height
+	chain.header = header
+	chain.currentHeight = header.Height
 }
 
 func (chain *BlockChain) GetLastHeight() int64 {

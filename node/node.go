@@ -13,6 +13,6 @@ type Node interface {
 	GetBlockByHeight(chainId, height int64) *blockchain.Block
 
 	BlockFromPeer(block blockchain.Block)
-	VoteFromPeer(vote blockchain.BlockVote)
+	VoteFromPeer(vote blockchain.PeerBlockVote)
 	VoteResultFromPeer(votes blockchain.Votes)
 }

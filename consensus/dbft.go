@@ -2,12 +2,9 @@ package consensus
 
 import (
 	"encoding/hex"
-	"encoding/json"
 	"fmt"
 	"github.com/EducationEKT/EKT/ektclient"
 	"github.com/EducationEKT/EKT/encapdb"
-	"xserver/x_http/x_resp"
-
 	"sync"
 	"time"
 
@@ -124,12 +121,14 @@ func (dbft DbftConsensus) SendVote(header blockchain.Header) {
 	dbft.BlockManager.SetVoteTime(header.Height, time.Now().UnixNano()/1e6)
 
 	// 生成vote对象
-	vote := &blockchain.BlockVote{
-		BlockchainId: dbft.Blockchain.ChainId,
-		BlockHash:    header.CaculateHash(),
-		BlockHeight:  header.Height,
-		VoteResult:   true,
-		Peer:         conf.EKTConfig.Node,
+	vote := &blockchain.PeerBlockVote{
+		Vote: blockchain.BlockVoteDetail{
+			BlockchainId: dbft.Blockchain.ChainId,
+			BlockHash:    header.CaculateHash(),
+			BlockHeight:  header.Height,
+			VoteResult:   true,
+		},
+		Peer: conf.EKTConfig.Node,
 	}
 
 	// 签名
@@ -199,6 +198,9 @@ func (dbft DbftConsensus) delegateRun() {
 
 func (dbft DbftConsensus) ValidatePackRight(packTime, lastBlockTime int64, node types.Peer) bool {
 	round := dbft.Round
+	if lastBlockTime == 0 {
+		return round.Peers[0].Equal(node)
+	}
 	intervalInFact, interval := int(packTime-lastBlockTime), int(blockchain.BackboneBlockInterval/1e6)
 
 	// n表示距离上次打包的间隔
@@ -299,6 +301,7 @@ func (dbft DbftConsensus) Pack(ctxlog *ctxlog.ContextLog) {
 	dbft.Blockchain.PackTransaction(block)
 
 	// 增加打包信息
+	dbft.SaveHeader(*block.GetHeader())
 	dbft.BlockManager.Insert(*block)
 	dbft.BlockManager.SetBlockStatus(block.Hash, blockchain.BLOCK_VALID)
 	dbft.BlockManager.SetBlockStatusByHeight(block.GetHeader().Height, block.GetHeader().Timestamp)
@@ -334,8 +337,8 @@ func (dbft DbftConsensus) RecoverFromDB() {
 		header = block.GetHeader()
 		dbft.SaveBlock(block, nil)
 	}
-	dbft.Blockchain.SetLastBlock(*header)
-	log.Info("Recovered from local database. ====%d", dbft.Blockchain.GetLastHeight())
+	dbft.Blockchain.SetLastHeader(*header)
+	log.Info("Recovered from local database.")
 }
 
 // 获取存活的委托人节点数量
@@ -378,12 +381,12 @@ func (dbft DbftConsensus) SyncHeight(height int64) bool {
 }
 
 // 从其他委托人节点发过来的区块的投票进行记录
-func (dbft DbftConsensus) VoteFromPeer(vote blockchain.BlockVote) {
+func (dbft DbftConsensus) VoteFromPeer(vote blockchain.PeerBlockVote) {
 	dbft.VoteResults.Insert(vote)
 
-	if dbft.VoteResults.Number(vote.BlockHash) > len(dbft.GetRound().Peers)/2 {
-		log.Info("Vote number more than half node, sending vote result to other nodes.")
-		votes := dbft.VoteResults.GetVoteResults(hex.EncodeToString(vote.BlockHash))
+	if dbft.VoteResults.Number(vote.Vote.BlockHash) > len(dbft.GetRound().Peers)/2 {
+		log.Info("BlockVoteDetail number more than half node, sending vote result to other nodes.")
+		votes := dbft.VoteResults.GetVoteResults(hex.EncodeToString(vote.Vote.BlockHash))
 		for _, peer := range dbft.GetRound().Peers {
 			url := fmt.Sprintf(`http://%s:%d/vote/api/voteResult`, peer.Address, peer.Port)
 			go util.HttpPost(url, votes.Bytes())
@@ -398,7 +401,7 @@ func (dbft DbftConsensus) RecieveVoteResult(votes blockchain.Votes) bool {
 		return false
 	}
 
-	status := dbft.BlockManager.GetBlockStatus(votes[0].BlockHash)
+	status := dbft.BlockManager.GetBlockStatus(votes[0].Vote.BlockHash)
 
 	// 已经写入到链中
 	if status == blockchain.BLOCK_SAVED {
@@ -408,12 +411,12 @@ func (dbft DbftConsensus) RecieveVoteResult(votes blockchain.Votes) bool {
 	// 未同步区块body
 	if status > blockchain.BLOCK_ERROR_START && status < blockchain.BLOCK_ERROR_END {
 		// 未同步区块体通过sync同步区块
-		log.Crit("Invalid block and votes, block.hash = %s", hex.EncodeToString(votes[0].BlockHash))
+		log.Crit("Invalid block and votes, block.hash = %s", hex.EncodeToString(votes[0].Vote.BlockHash))
 	}
 
 	// 区块已经校验但未写入链中
 	if status == blockchain.BLOCK_VALID || status == blockchain.BLOCK_VOTED {
-		block := dbft.BlockManager.GetBlock(votes[0].BlockHash)
+		block := dbft.BlockManager.GetBlock(votes[0].Vote.BlockHash)
 		dbft.SaveBlock(*block, votes)
 		return true
 	}
@@ -427,8 +430,12 @@ func (dbft DbftConsensus) SaveBlock(block blockchain.Block, votes blockchain.Vot
 	encapdb.SetBlockByHeight(dbft.Blockchain.ChainId, block.GetHeader().Height, block)
 	encapdb.SetHeaderByHeight(dbft.Blockchain.ChainId, block.GetHeader().Height, *block.GetHeader())
 	encapdb.SetLastHeader(dbft.Blockchain.ChainId, *block.GetHeader())
-	dbft.Blockchain.SetLastBlock(*block.GetHeader())
+	dbft.Blockchain.SetLastHeader(*block.GetHeader())
 	dbft.Blockchain.NotifyPool(block.GetTransactions())
+}
+
+func (dbft DbftConsensus) SaveHeader(header blockchain.Header) {
+	db.GetDBInst().Set(header.CaculateHash(), header.Bytes())
 }
 
 // 校验voteResults
@@ -441,69 +448,4 @@ func (dbft DbftConsensus) ValidateVotes(votes blockchain.Votes) bool {
 		return false
 	}
 	return true
-}
-
-// 保存voteResults，用于同步区块时的校验
-func (dbft DbftConsensus) SaveVotes(votes blockchain.Votes) {
-	dbKey := []byte(fmt.Sprintf("block_votes:%s", hex.EncodeToString(votes[0].BlockHash)))
-	db.GetDBInst().Set(dbKey, votes.Bytes())
-}
-
-// 根据区块hash获取votes
-func (dbft DbftConsensus) GetVotes(blockHash string) blockchain.Votes {
-	dbKey := []byte(fmt.Sprintf("block_votes:%s", blockHash))
-	data, err := db.GetDBInst().Get(dbKey)
-	if err != nil {
-		return nil
-	}
-	var votes blockchain.Votes
-	err = json.Unmarshal(data, &votes)
-	if err != nil {
-		return nil
-	}
-	return votes
-}
-
-//获取当前的peers
-func (dbft DbftConsensus) GetCurrentDelegatePeers() types.Peers {
-	return param.MainChainDelegateNode
-}
-
-// 根据height获取blockHeader
-func getBlockHeader(peer types.Peer, height int64) (*blockchain.Header, error) {
-	url := fmt.Sprintf(`http://%s:%d/block/api/blockByHeight?height=%d`, peer.Address, peer.Port, height)
-	body, err := util.HttpGet(url)
-	if err != nil {
-		return nil, err
-	}
-	var resp x_resp.XRespBody
-	err = json.Unmarshal(body, &resp)
-	data, err := json.Marshal(resp.Result)
-	if err == nil {
-		var block blockchain.Header
-		err = json.Unmarshal(data, &block)
-		return &block, err
-	}
-	return nil, err
-}
-
-// 根据hash向委托人节点获取votes
-func getVotes(peer types.Peer, blockHash string) (blockchain.Votes, error) {
-	url := fmt.Sprintf(`http://%s:%d/vote/api/getVotes?hash=%s`, peer.Address, peer.Port, blockHash)
-	body, err := util.HttpGet(url)
-	if err != nil {
-		return nil, err
-	}
-	var resp x_resp.XRespBody
-	err = json.Unmarshal(body, &resp)
-	if err == nil && resp.Status == 0 {
-		var votes blockchain.Votes
-		data, err := json.Marshal(resp.Result)
-		if err != nil {
-			return nil, err
-		}
-		err = json.Unmarshal(data, &votes)
-		return votes, err
-	}
-	return nil, err
 }

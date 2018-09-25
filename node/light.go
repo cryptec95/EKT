@@ -21,7 +21,7 @@ type FullNode struct {
 func NewFullMode(config conf.EKTConf) *FullNode {
 	node := &FullNode{
 		config:     config,
-		blockchain: blockchain.NewBlockChain(),
+		blockchain: blockchain.NewBlockChain(1),
 		client:     ektclient.NewClient(param.MainChainDelegateNode),
 	}
 	node.dbft = consensus.NewDbftConsensus(node.blockchain, node.client)
@@ -46,7 +46,7 @@ func (node FullNode) BlockFromPeer(block blockchain.Block) {
 	return
 }
 
-func (node FullNode) VoteFromPeer(vote blockchain.BlockVote) {
+func (node FullNode) VoteFromPeer(vote blockchain.PeerBlockVote) {
 	return
 }
 

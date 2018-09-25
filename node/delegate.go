@@ -23,7 +23,7 @@ func NewDelegateNode(conf conf.EKTConf) *DelegateNode {
 	node := &DelegateNode{
 		db:         db.GetDBInst(),
 		config:     conf,
-		blockchain: blockchain.NewBlockChain(),
+		blockchain: blockchain.NewBlockChain(1),
 		client:     ektclient.NewClient(param.MainChainDelegateNode),
 	}
 	node.dbft = consensus.NewDbftConsensus(node.blockchain, node.client)
@@ -45,15 +45,16 @@ func (delegate DelegateNode) RecoverFromDB() {
 
 func (delegate DelegateNode) BlockFromPeer(block blockchain.Block) {
 	ctxLog := ctxlog.NewContextLog("blockFromPeer")
+	defer ctxLog.Finish()
 	delegate.dbft.BlockFromPeer(ctxLog, block)
 }
 
-func (delegate DelegateNode) VoteFromPeer(vote blockchain.BlockVote) {
-	//TODO
+func (delegate DelegateNode) VoteFromPeer(vote blockchain.PeerBlockVote) {
+	delegate.dbft.VoteFromPeer(vote)
 }
 
 func (delegate DelegateNode) VoteResultFromPeer(votes blockchain.Votes) {
-	//TODO
+	delegate.dbft.RecieveVoteResult(votes)
 }
 
 func (delegate DelegateNode) GetVoteResults(chainId int64, hash string) blockchain.Votes {

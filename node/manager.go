@@ -39,7 +39,7 @@ func BlockFromPeer(block blockchain.Block) {
 	fullNode.BlockFromPeer(block)
 }
 
-func VoteFromPeer(vote blockchain.BlockVote) {
+func VoteFromPeer(vote blockchain.PeerBlockVote) {
 	fullNode.VoteFromPeer(vote)
 }
 

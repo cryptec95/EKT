@@ -17,16 +17,20 @@ func init() {
 	VoteResultManager = NewVoteResults()
 }
 
-type BlockVote struct {
+type BlockVoteDetail struct {
 	BlockchainId int64          `json:"blockchainId"`
 	BlockHash    types.HexBytes `json:"blockHash"`
 	BlockHeight  int64          `json:"blockHeight"`
 	VoteResult   bool           `json:"voteResult"`
-	Peer         types.Peer     `json:"peer"`
-	Signature    types.HexBytes `json:"signature"`
 }
 
-type Votes []BlockVote
+type PeerBlockVote struct {
+	Vote      BlockVoteDetail `json:"vote"`
+	Peer      types.Peer      `json:"peer"`
+	Signature types.HexBytes  `json:"signature"`
+}
+
+type Votes []PeerBlockVote
 
 type VoteResults struct {
 	broadcast   *sync.Map
@@ -40,9 +44,8 @@ func NewVoteResults() VoteResults {
 	}
 }
 
-func (vote1 BlockVote) Equal(vote2 BlockVote) bool {
-	return vote1.Peer.Equal(vote2.Peer) && vote1.BlockchainId == vote2.BlockchainId && bytes.EqualFold(vote1.BlockHash, vote2.BlockHash) &&
-		vote1.BlockHeight == vote2.BlockHeight && vote1.VoteResult == vote2.VoteResult
+func (vote1 PeerBlockVote) Equal(vote2 PeerBlockVote) bool {
+	return vote1.Peer.Equal(vote2.Peer) && bytes.EqualFold(vote1.Vote.BlockHash, vote2.Vote.BlockHash)
 }
 
 func (voteResults VoteResults) GetVoteResults(hash string) Votes {
@@ -57,8 +60,8 @@ func (voteResults VoteResults) SetVoteResults(hash string, votes Votes) {
 	voteResults.voteResults.Store(hash, votes)
 }
 
-func (vote BlockVote) Validate() bool {
-	pubKey, err := crypto.RecoverPubKey(crypto.Sha3_256(vote.Bytes()), vote.Signature)
+func (vote PeerBlockVote) Validate() bool {
+	pubKey, err := crypto.RecoverPubKey(vote.Msg(), vote.Signature)
 	if err != nil {
 		return false
 	}
@@ -68,8 +71,8 @@ func (vote BlockVote) Validate() bool {
 	return true
 }
 
-func (vote *BlockVote) Sign(PrivKey []byte) error {
-	signature, err := crypto.Crypto(crypto.Sha3_256(vote.Bytes()), PrivKey)
+func (vote *PeerBlockVote) Sign(PrivKey []byte) error {
+	signature, err := crypto.Crypto(vote.Msg(), PrivKey)
 	if err != nil {
 		return err
 	} else {
@@ -78,13 +81,18 @@ func (vote *BlockVote) Sign(PrivKey []byte) error {
 	return nil
 }
 
-func (vote BlockVote) Bytes() []byte {
+func (vote PeerBlockVote) Bytes() []byte {
 	data, _ := json.Marshal(vote)
 	return data
 }
 
-func (voteResults VoteResults) Insert(vote BlockVote) {
-	votes := voteResults.GetVoteResults(hex.EncodeToString(vote.BlockHash))
+func (vote PeerBlockVote) Msg() []byte {
+	data, _ := json.Marshal(vote.Vote)
+	return crypto.Sha3_256(data)
+}
+
+func (voteResults VoteResults) Insert(vote PeerBlockVote) {
+	votes := voteResults.GetVoteResults(hex.EncodeToString(vote.Vote.BlockHash))
 	if len(votes) > 0 {
 		for _, _vote := range votes {
 			if vote.Equal(_vote) {
@@ -93,10 +101,10 @@ func (voteResults VoteResults) Insert(vote BlockVote) {
 		}
 		votes = append(votes, vote)
 	} else {
-		votes = make([]BlockVote, 0)
+		votes = make([]PeerBlockVote, 0)
 		votes = append(votes, vote)
 	}
-	voteResults.SetVoteResults(hex.EncodeToString(vote.BlockHash), votes)
+	voteResults.SetVoteResults(hex.EncodeToString(vote.Vote.BlockHash), votes)
 }
 
 func (voteResults VoteResults) Number(blockHash []byte) int {
@@ -131,7 +139,7 @@ func (votes Votes) Validate() bool {
 		return false
 	}
 	for i, vote := range votes {
-		if !vote.Validate() || !vote.VoteResult {
+		if !vote.Validate() || !vote.Vote.VoteResult {
 			return false
 		}
 		for j, _vote := range votes {
