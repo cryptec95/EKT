@@ -50,7 +50,19 @@ func (mtp MTP) MarshalJSON() ([]byte, error) {
 }
 
 func MTP_Tree(db db.IKVDatabase, root []byte) *MTP {
-	return &MTP{DB: db, Root: root, Lock: &sync.RWMutex{}}
+	trie := &MTP{DB: db, Root: root, Lock: &sync.RWMutex{}}
+	if len(root) != 0 {
+		trie.Root = root
+	} else {
+		node := TrieNode{
+			Root:      true,
+			Leaf:      false,
+			PathValue: nil,
+			Sons:      *new(SortedSon),
+		}
+		trie.Root, _ = trie.SaveNode(node)
+	}
+	return trie
 }
 
 func NewMTP(db db.IKVDatabase) *MTP {
