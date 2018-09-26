@@ -35,6 +35,11 @@ func GetBlockFromBytes(data []byte) *Block {
 	return &block
 }
 
+func (block *Block) AddTransaction(transaction userevent.Transaction, receipt userevent.TransactionReceipt) {
+	block.Transactions = append(block.Transactions, transaction)
+	block.TransactionReceipts = append(block.TransactionReceipts, receipt)
+}
+
 func (block Block) GetTransactions() []userevent.Transaction {
 	if hex.EncodeToString(block.GetHeader().TxHash) == EMPTY_TX {
 		return []userevent.Transaction{}
@@ -57,7 +62,7 @@ func (block Block) GetTxReceipts() []userevent.TransactionReceipt {
 	if hex.EncodeToString(block.GetHeader().TxHash) == EMPTY_TX {
 		return []userevent.TransactionReceipt{}
 	} else if len(block.TransactionReceipts) == 0 {
-		body, err := block.Miner.GetDBValue(hex.EncodeToString(block.header.ReceiptHash))
+		body, err := block.Miner.GetDBValue(hex.EncodeToString(block.GetHeader().ReceiptHash))
 		if err != nil {
 			return nil
 		}
@@ -84,9 +89,9 @@ func (block Block) GetHeader() *Header {
 	return block.header
 }
 
-func (block *Block) NewTransaction(tx userevent.Transaction) {
+func (block *Block) NewTransaction(tx userevent.Transaction) *userevent.TransactionReceipt {
 	if len(tx.From) != 32 || len(tx.To) != 32 {
-		return
+		return nil
 	}
 	receipt := block.header.NewTransaction(tx)
 	if receipt.Success {
@@ -94,6 +99,7 @@ func (block *Block) NewTransaction(tx userevent.Transaction) {
 	}
 	block.Transactions = append(block.Transactions, tx)
 	block.TransactionReceipts = append(block.TransactionReceipts, receipt)
+	return &receipt
 }
 
 func (block *Block) Finish() {
