@@ -1,9 +1,11 @@
 package node
 
 import (
+	"encoding/hex"
 	"github.com/EducationEKT/EKT/blockchain"
 	"github.com/EducationEKT/EKT/conf"
 	"github.com/EducationEKT/EKT/consensus"
+	"github.com/EducationEKT/EKT/core/types"
 	"github.com/EducationEKT/EKT/ctxlog"
 	"github.com/EducationEKT/EKT/db"
 	"github.com/EducationEKT/EKT/ektclient"
@@ -32,7 +34,7 @@ func NewDelegateNode(conf conf.EKTConf) *DelegateNode {
 
 func (delegate DelegateNode) StartNode() {
 	delegate.RecoverFromDB()
-	go delegate.dbft.Run()
+	delegate.dbft.Run()
 }
 
 func (delegate DelegateNode) GetBlockChain() *blockchain.BlockChain {
@@ -43,9 +45,16 @@ func (delegate DelegateNode) RecoverFromDB() {
 	delegate.dbft.RecoverFromDB()
 }
 
+func (delegate DelegateNode) Heartbeat(heartbeat types.Heartbeat) {
+	if heartbeat.Validate() {
+		delegate.dbft.ReceiveHeartbeat(heartbeat)
+	}
+}
+
 func (delegate DelegateNode) BlockFromPeer(block blockchain.Block) {
 	ctxLog := ctxlog.NewContextLog("blockFromPeer")
 	defer ctxLog.Finish()
+	ctxLog.Log("blockHash", hex.EncodeToString(block.Hash))
 	delegate.dbft.BlockFromPeer(ctxLog, block)
 }
 

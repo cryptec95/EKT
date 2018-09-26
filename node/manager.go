@@ -30,7 +30,7 @@ func Init(env string) {
 		env := checkEnv()
 		Init(env)
 	}
-	go fullNode.StartNode()
+	fullNode.StartNode()
 }
 
 func checkEnv() string {
@@ -47,6 +47,10 @@ func checkEnv() string {
 		}
 	}
 	return NODE_ENV_FULL_SYNC
+}
+
+func GetInst() Node {
+	return fullNode
 }
 
 func GetMainChain() *blockchain.BlockChain {

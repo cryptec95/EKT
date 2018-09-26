@@ -2,6 +2,7 @@ package node
 
 import (
 	"github.com/EducationEKT/EKT/blockchain"
+	"github.com/EducationEKT/EKT/core/types"
 )
 
 type Node interface {
@@ -15,4 +16,5 @@ type Node interface {
 	BlockFromPeer(block blockchain.Block)
 	VoteFromPeer(vote blockchain.PeerBlockVote)
 	VoteResultFromPeer(votes blockchain.Votes)
+	Heartbeat(heartbeat types.Heartbeat)
 }

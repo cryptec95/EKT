@@ -2,6 +2,7 @@ package blockchain
 
 import (
 	"encoding/hex"
+	"github.com/EducationEKT/EKT/ctxlog"
 	"sync"
 	"time"
 
@@ -57,10 +58,7 @@ func (chain *BlockChain) PackTime() time.Duration {
 	return BackboneBlockInterval - 500*time.Millisecond
 }
 
-func (chain *BlockChain) PackTransaction(block *Block) {
-	defer block.Finish()
-
-	header := block.GetHeader()
+func (chain *BlockChain) PackTransaction(ctxlog *ctxlog.ContextLog, block *Block) {
 	eventTimeout := time.After(chain.PackTime())
 
 	start := time.Now().UnixNano()
@@ -71,7 +69,6 @@ func (chain *BlockChain) PackTransaction(block *Block) {
 		select {
 		case <-eventTimeout:
 			flag = true
-			break
 		default:
 			multiFetcher := pool.NewMultiFetcher(10)
 			chain.Pool.MultiFetcher <- multiFetcher
@@ -87,7 +84,8 @@ func (chain *BlockChain) PackTransaction(block *Block) {
 						tx, ok := event.(*userevent.Transaction)
 						if ok {
 							numTx++
-							header.NewTransaction(*tx)
+							receipt := block.NewTransaction(*tx)
+							block.AddTransaction(*tx, *receipt)
 						}
 					}
 				}
@@ -97,8 +95,6 @@ func (chain *BlockChain) PackTransaction(block *Block) {
 			break
 		}
 	}
-
-	header.UpdateMiner()
 
 	end := time.Now().UnixNano()
 	log.Debug("Total tx: %d, Total time: %d ns, TPS: %d. \n", numTx, end-start, numTx*1e9/int(end-start))
@@ -133,10 +129,7 @@ func (chain *BlockChain) NewUserEvent(event userevent.IUserEvent) bool {
 func (chain *BlockChain) NewTransaction(tx *userevent.Transaction) bool {
 	block := chain.LastHeader()
 	account, err := block.GetAccount(tx.GetFrom())
-	if err != nil {
-		return false
-	}
-	if account.GetNonce() >= tx.GetNonce() {
+	if err != nil || account.GetNonce() >= tx.GetNonce() {
 		return false
 	}
 	if account.GetNonce()+1 == tx.GetNonce() {

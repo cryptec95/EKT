@@ -33,7 +33,7 @@ type TrieNode struct {
 }
 
 type MTP struct {
-	Lock *sync.RWMutex
+	Lock sync.RWMutex
 	Root types.HexBytes
 	DB   db.IKVDatabase
 }
@@ -42,6 +42,7 @@ func (mtp *MTP) UnmarshalJSON(data []byte) error {
 	data = data[:len(data)-1][1:]
 	bytes, err := hex.DecodeString(string(data))
 	mtp.Root = bytes
+	mtp.DB = db.GetDBInst()
 	return err
 }
 
@@ -50,7 +51,7 @@ func (mtp MTP) MarshalJSON() ([]byte, error) {
 }
 
 func MTP_Tree(db db.IKVDatabase, root []byte) *MTP {
-	trie := &MTP{DB: db, Root: root, Lock: &sync.RWMutex{}}
+	trie := &MTP{DB: db, Root: root, Lock: sync.RWMutex{}}
 	if len(root) != 0 {
 		trie.Root = root
 	} else {
