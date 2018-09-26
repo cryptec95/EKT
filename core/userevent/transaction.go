@@ -17,6 +17,8 @@ const (
 	FailType_NO_GAS
 	FailType_Invalid_NONCE
 	FailType_NO_ENOUGH_AMOUNT
+
+	FailType_CONTRACT_ERROR
 )
 
 type Transactions []Transaction
@@ -34,11 +36,23 @@ type Transaction struct {
 	Sign         types.HexBytes `json:"sign"`
 }
 
+type SubTransaction struct {
+	Parent       types.HexBytes `json:"parent"`
+	From         types.HexBytes `json:"from"`
+	To           types.HexBytes `json:"to"`
+	Amount       int64          `json:"amount"`
+	Data         string         `json:"data"`
+	TokenAddress types.HexBytes `json:"tokenAddress"`
+}
+
+type SubTransactions []SubTransaction
+
 type TransactionReceipt struct {
-	TxId     types.HexBytes `json:"txId"`
-	Fee      int64          `json:"fee"`
-	Success  bool           `json:"success"`
-	FailType int            `json:"failType"`
+	TxId            types.HexBytes  `json:"txId"`
+	Fee             int64           `json:"fee"`
+	Success         bool            `json:"success"`
+	SubTransactions SubTransactions `json:"subTransactions"`
+	FailType        int             `json:"failType"`
 }
 
 func NewTransaction(from, to []byte, timestamp, amount, fee, nonce int64, data, tokenAddress string) *Transaction {
