@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
-
 	"github.com/EducationEKT/EKT/crypto"
 )
 
