@@ -29,6 +29,12 @@ func userInfo(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
 
 func userNonce(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
 	hexAddress := req.MustGetString("address")
+
+	txs := node.GetMainChain().Pool.GetUserTxs(hexAddress)
+	if txs != nil {
+		return x_resp.Return(txs.Nonce, nil)
+	}
+
 	address, err := hex.DecodeString(hexAddress)
 	if err != nil {
 		return x_resp.Return(nil, err)
@@ -39,11 +45,6 @@ func userNonce(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
 		return x_resp.Return(nil, err)
 	}
 	nonce := account.GetNonce()
-
-	txs := node.GetMainChain().Pool.GetReadyEvents(hexAddress)
-	if len(txs) > 0 {
-		nonce = txs[len(txs)-1].GetNonce()
-	}
 
 	return x_resp.Return(nonce, nil)
 }
