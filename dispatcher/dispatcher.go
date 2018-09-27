@@ -24,7 +24,7 @@ func NewTransaction(transaction *userevent.Transaction) error {
 			return err
 		}
 	}
-	if !userevent.Validate(transaction) {
+	if !userevent.ValidateTransaction(*transaction) {
 		return errors.New("error signature")
 	}
 	if bytes.EqualFold(transaction.GetFrom(), transaction.GetTo()) {

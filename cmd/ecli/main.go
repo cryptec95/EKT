@@ -11,7 +11,7 @@ var (
 )
 
 func init() {
-	cmds = append(cmds, cmd.TransactionCmd, cmd.AccountCmd, cmd.TokenCommand)
+	cmds = append(cmds, cmd.TransactionCmd, cmd.AccountCmd)
 }
 
 func main() {

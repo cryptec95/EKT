@@ -74,7 +74,7 @@ func SendTransaction(cmd *cobra.Command, args []string) {
 	}
 	nonce := getAccountNonce(hex.EncodeToString(from))
 	tx := userevent.NewTransaction(from, to, time.Now().UnixNano()/1e6, int64(amount), 510000, nonce, "", tokenAddress)
-	userevent.SignUserEvent(tx, privKey)
+	userevent.SignTransaction(tx, privKey)
 	sendTransaction(*tx)
 }
 
@@ -112,7 +112,7 @@ func testTPS(tx *userevent.Transaction, priv []byte) {
 	max, min := tx.Nonce+2000, tx.Nonce
 	for nonce := max; nonce >= min; nonce-- {
 		tx.Nonce = int64(nonce)
-		userevent.SignUserEvent(tx, priv)
+		userevent.SignTransaction(tx, priv)
 		sendTransaction(*tx)
 		fmt.Println(tx.String())
 	}
