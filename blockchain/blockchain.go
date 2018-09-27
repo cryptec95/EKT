@@ -1,7 +1,6 @@
 package blockchain
 
 import (
-	"encoding/hex"
 	"github.com/EducationEKT/EKT/ctxlog"
 	"sync"
 	"time"
@@ -70,26 +69,38 @@ func (chain *BlockChain) PackTransaction(ctxlog *ctxlog.ContextLog, block *Block
 		case <-eventTimeout:
 			flag = true
 		default:
-			multiFetcher := pool.NewMultiFetcher(10)
-			chain.Pool.MultiFetcher <- multiFetcher
-			events := <-multiFetcher.Chan
-			if len(events) > 0 {
+			//multiFetcher := pool.NewMultiFetcher(10)
+			//chain.Pool.MultiFetcher <- multiFetcher
+			//events := <-multiFetcher.Chan
+			txs := chain.Pool.Pop(20)
+			if len(txs) > 0 {
 				if !started {
 					started = true
 					start = time.Now().UnixNano()
 				}
-				for _, event := range events {
-					switch event.Type() {
-					case userevent.TYPE_USEREVENT_TRANSACTION:
-						tx, ok := event.(*userevent.Transaction)
-						if ok {
-							numTx++
-							receipt := block.NewTransaction(*tx)
-							block.AddTransaction(*tx, *receipt)
-						}
-					}
+				for _, tx := range txs {
+					receipt := block.NewTransaction(*tx)
+					block.AddTransaction(*tx, *receipt)
 				}
+				numTx += len(txs)
 			}
+			//if len(events) > 0 {
+			//	if !started {
+			//		started = true
+			//		start = time.Now().UnixNano()
+			//	}
+			//	for _, event := range events {
+			//		switch event.Type() {
+			//		case userevent.TYPE_USEREVENT_TRANSACTION:
+			//			tx, ok := event.(*userevent.Transaction)
+			//			if ok {
+			//				numTx++
+			//				receipt := block.NewTransaction(*tx)
+			//				block.AddTransaction(*tx, *receipt)
+			//			}
+			//		}
+			//	}
+			//}
 		}
 		if flag {
 			break
@@ -101,29 +112,13 @@ func (chain *BlockChain) PackTransaction(ctxlog *ctxlog.ContextLog, block *Block
 }
 
 // 当区块写入区块时，notify交易池，一些nonce比较大的交易可以进行打包
-func (chain *BlockChain) NotifyPool(transactions []userevent.Transaction) {
-	txIds := make([]string, 0)
-	for _, tx := range transactions {
-		txIds = append(txIds, hex.EncodeToString(tx.TxId()))
-	}
-	chain.Pool.Notify <- txIds
-}
-
-func (chain *BlockChain) NewUserEvent(event userevent.IUserEvent) bool {
-	block := chain.LastHeader()
-	account, err := block.GetAccount(event.GetFrom())
-	if err != nil {
-		return false
-	}
-	if account.GetNonce() >= event.GetNonce() {
-		return false
-	}
-	if account.GetNonce()+1 == event.GetNonce() {
-		chain.Pool.SingleReady <- event
-	} else {
-		chain.Pool.SingleBlock <- event
-	}
-	return true
+func (chain *BlockChain) NotifyPool(txs []userevent.Transaction) {
+	chain.Pool.Notify(txs)
+	//txIds := make([]string, 0)
+	//for _, tx := range transactions {
+	//	txIds = append(txIds, hex.EncodeToString(tx.TxId()))
+	//}
+	//chain.Pool.NotifyChan <- txIds
 }
 
 func (chain *BlockChain) NewTransaction(tx *userevent.Transaction) bool {
@@ -132,10 +127,11 @@ func (chain *BlockChain) NewTransaction(tx *userevent.Transaction) bool {
 	if err != nil || account.GetNonce() >= tx.GetNonce() {
 		return false
 	}
-	if account.GetNonce()+1 == tx.GetNonce() {
-		chain.Pool.SingleReady <- tx
-	} else {
-		chain.Pool.SingleBlock <- tx
-	}
+	chain.Pool.Park(tx, account.GetNonce())
+	//if account.GetNonce()+1 == tx.GetNonce() {
+	//	chain.Pool.SingleReady <- tx
+	//} else {
+	//	chain.Pool.SingleBlock <- tx
+	//}
 	return true
 }
