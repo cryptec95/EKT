@@ -152,6 +152,31 @@ func (transactions Transactions) Bytes() []byte {
 	return data
 }
 
+func (transactions Transactions) QuickInsert(transaction Transaction) Transactions {
+	if len(transactions) == 0 {
+		return append(transactions, transaction)
+	}
+	if transaction.GetNonce() < transactions[0].GetNonce() {
+		list := make(Transactions, 0)
+		list = append(list, transaction)
+		list = append(list, transactions...)
+		return list
+	}
+	if transaction.GetNonce() > transactions[len(transactions)-1].GetNonce() {
+		return append(transactions, transaction)
+	}
+	for i := 0; i < len(transactions)-1; i++ {
+		if transactions[i].GetNonce() < transaction.GetNonce() && transaction.GetNonce() < transactions[i+1].GetNonce() {
+			list := make(Transactions, 0)
+			list = append(list, transactions[:i+1]...)
+			list = append(list, transaction)
+			list = append(list, transactions[i+1:]...)
+			return list
+		}
+	}
+	return transactions
+}
+
 func (receipts Receipts) Bytes() []byte {
 	data, _ := json.Marshal(receipts)
 	return data
