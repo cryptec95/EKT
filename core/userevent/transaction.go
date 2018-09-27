@@ -9,7 +9,6 @@ import (
 
 	"github.com/EducationEKT/EKT/core/types"
 	"github.com/EducationEKT/EKT/crypto"
-	"github.com/EducationEKT/EKT/db"
 )
 
 const (
@@ -82,10 +81,6 @@ func (receipt1 TransactionReceipt) EqualsTo(receipt2 TransactionReceipt) bool {
 		receipt1.FailType == receipt2.FailType && bytes.EqualFold(receipt1.TxId, receipt2.TxId)
 }
 
-func (tx Transaction) Type() string {
-	return TYPE_USEREVENT_TRANSACTION
-}
-
 func (tx Transaction) GetNonce() int64 {
 	return tx.Nonce
 }
@@ -108,31 +103,6 @@ func (tx Transaction) GetFrom() []byte {
 
 func (tx Transaction) GetTo() []byte {
 	return tx.To
-}
-
-func (tx Transaction) SetFrom(from []byte) {
-	tx.From = from
-}
-
-func (tx Transaction) EventId() string {
-	return tx.TransactionId()
-}
-
-func GetTransaction(txId []byte) *Transaction {
-	txData, err := db.GetDBInst().Get(txId)
-	if err != nil {
-		return nil
-	}
-	return FromBytesToTransaction(txData)
-}
-
-func FromBytesToTransaction(data []byte) *Transaction {
-	var tx Transaction
-	err := json.Unmarshal(data, &tx)
-	if err != nil {
-		return nil
-	}
-	return &tx
 }
 
 func (transactions Transactions) Len() int {
@@ -183,8 +153,7 @@ func (receipts Receipts) Bytes() []byte {
 }
 
 func (tx *Transaction) TransactionId() string {
-	txData, _ := json.Marshal(tx)
-	return hex.EncodeToString(crypto.Sha3_256(txData))
+	return hex.EncodeToString(crypto.Sha3_256(tx.TxId()))
 }
 
 func (tx *Transaction) TxId() []byte {
