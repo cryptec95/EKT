@@ -7,11 +7,12 @@ import (
 )
 
 type Account struct {
-	Address  HexBytes         `json:"address"`
-	Amount   int64            `json:"amount"`
-	Gas      int64            `json:"gas"`
-	Nonce    int64            `json:"nonce"`
-	Balances map[string]int64 `json:"balances"`
+	Address   HexBytes                   `json:"address"`
+	Amount    int64                      `json:"amount"`
+	Gas       int64                      `json:"gas"`
+	Nonce     int64                      `json:"nonce"`
+	Contracts map[string]ContractAccount `json:"contracts"`
+	Balances  map[string]int64           `json:"balances"`
 }
 
 func CreateAccount(address []byte, Amount int64) Account {

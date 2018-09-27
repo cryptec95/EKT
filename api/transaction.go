@@ -18,8 +18,7 @@ import (
 func init() {
 	x_router.Get("/transaction/api/fee", fee)
 	x_router.Post("/transaction/api/newTransaction", broadcast, newTransaction)
-	x_router.Get("/transaction/api/queueTxs", queueTxs)
-	x_router.Get("/transaction/api/blockTxs", blockTxs)
+	x_router.Get("/transaction/api/userTxs", userTxs)
 	x_router.Get("/transaction/api/status", txStatus)
 }
 
@@ -27,14 +26,9 @@ func fee(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
 	return x_resp.Return(node.SuggestFee(), nil)
 }
 
-func queueTxs(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
+func userTxs(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
 	address := req.MustGetString("address")
-	return x_resp.Return(node.GetMainChain().Pool.GetReadyEvents(address), nil)
-}
-
-func blockTxs(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
-	address := req.MustGetString("address")
-	return x_resp.Return(node.GetMainChain().Pool.GetBlockEvents(address), nil)
+	return x_resp.Return(node.GetMainChain().Pool.GetUserTxs(address), nil)
 }
 
 func txStatus(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
