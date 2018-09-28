@@ -18,13 +18,13 @@ func NewTimedList() *TxTimedList {
 	}
 }
 
-func (list TxTimedList) Put(tx *userevent.Transaction) {
+func (list *TxTimedList) Put(tx *userevent.Transaction) {
 	list.locker.Lock()
 	list.list = append(list.list, tx)
 	list.locker.Unlock()
 }
 
-func (list TxTimedList) Pop(size int) []*userevent.Transaction {
+func (list *TxTimedList) Pop(size int) []*userevent.Transaction {
 	list.locker.Lock()
 	defer list.locker.Unlock()
 	if len(list.list) < size {
@@ -38,7 +38,7 @@ func (list TxTimedList) Pop(size int) []*userevent.Transaction {
 	}
 }
 
-func (list TxTimedList) Notify(tx userevent.Transaction) {
+func (list *TxTimedList) Notify(tx userevent.Transaction) {
 	list.locker.Lock()
 	defer list.locker.Unlock()
 	for i, _tx := range list.list {
