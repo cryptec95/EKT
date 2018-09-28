@@ -5,9 +5,10 @@ package types
 // The end 32 byte represents the true address of contract for a founder
 
 type ContractAccount struct {
-	Address  HexBytes         `json:"address"`
-	CodeHash HexBytes         `json:"codeHash"`
-	Amount   int64            `json:"amount"`
-	Gas      int64            `json:"gas"`
-	Balances map[string]int64 `json:"balances"`
+	Address      HexBytes         `json:"address"`
+	CodeHash     HexBytes         `json:"codeHash"`
+	Amount       int64            `json:"amount"`
+	Gas          int64            `json:"gas"`
+	ContractData HexBytes         `json:"data"`
+	Balances     map[string]int64 `json:"balances"`
 }

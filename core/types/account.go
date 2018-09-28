@@ -2,7 +2,6 @@ package types
 
 import (
 	"encoding/json"
-
 	"github.com/EducationEKT/EKT/crypto"
 )
 
@@ -53,9 +52,9 @@ func (account *Account) AddAmount(amount int64) {
 }
 
 func (account *Account) ReduceAmount(amount int64, gas int64) {
-	account.Amount = account.Amount - amount
+	account.Amount -= amount
+	account.Gas -= gas
 	account.Nonce++
-	account.BurnGas(gas)
 }
 
 func (account *Account) BurnGas(gas int64) {
