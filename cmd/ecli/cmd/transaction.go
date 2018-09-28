@@ -73,7 +73,7 @@ func SendTransaction(cmd *cobra.Command, args []string) {
 		os.Exit(-1)
 	}
 	nonce := getAccountNonce(hex.EncodeToString(from))
-	tx := userevent.NewTransaction(from, to, time.Now().UnixNano()/1e6, int64(amount), 510000, nonce, "", tokenAddress)
+	tx := userevent.NewTransaction(from, to, time.Now().UnixNano()/1e6, int64(amount), 0, nonce, "", tokenAddress)
 	userevent.SignTransaction(tx, privKey)
 	sendTransaction(*tx)
 }
