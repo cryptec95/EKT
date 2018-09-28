@@ -87,7 +87,7 @@ func (manager *BlockManager) SetBlockStatusByHeight(height, ms int64) {
 }
 
 //将指定区块插入，默认是100
-func (manager *BlockManager) Insert(block Block) {
+func (manager *BlockManager) Insert(block *Block) {
 	hash := hex.EncodeToString(block.Hash)
 	if _, exist := manager.Blocks.Load(hash); exist {
 		return
@@ -102,6 +102,6 @@ func (manager *BlockManager) GetBlock(hash []byte) *Block {
 	if !exist {
 		return nil
 	}
-	block := b.(Block)
-	return &block
+	block := b.(*Block)
+	return block
 }
