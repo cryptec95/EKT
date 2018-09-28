@@ -96,10 +96,8 @@ func (header *Header) NewTransaction(tx userevent.Transaction) userevent.Transac
 		return userevent.NewTransactionReceipt(tx, false, userevent.FailType_NO_GAS)
 	}
 
-	var receiverAccount *types.Account
-	if header.ExistAddress(tx.GetTo()) {
-		receiverAccount, _ = header.GetAccount(tx.GetTo())
-	} else {
+	receiverAccount, err := header.GetAccount(tx.GetTo())
+	if receiverAccount == nil || err != nil {
 		receiverAccount = types.NewAccount(tx.GetTo())
 	}
 
@@ -121,6 +119,7 @@ func (header *Header) NewTransaction(tx userevent.Transaction) userevent.Transac
 		} else {
 			account.Balances[tx.TokenAddress] -= tx.Amount
 			account.BurnGas(tx.Fee)
+			account.Nonce++
 			if receiverAccount.Balances == nil {
 				receiverAccount.Balances = make(map[string]int64)
 				receiverAccount.Balances[tx.TokenAddress] = 0

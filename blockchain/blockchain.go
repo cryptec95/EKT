@@ -77,8 +77,7 @@ func (chain *BlockChain) PackTransaction(ctxlog *ctxlog.ContextLog, block *Block
 					start = time.Now().UnixNano()
 				}
 				for _, tx := range txs {
-					receipt := block.NewTransaction(*tx)
-					block.AddTransaction(*tx, *receipt)
+					block.NewTransaction(*tx)
 				}
 				numTx += len(txs)
 			}

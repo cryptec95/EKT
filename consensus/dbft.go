@@ -47,7 +47,7 @@ func (dbft DbftConsensus) BlockFromPeer(ctxlog *ctxlog.ContextLog, block blockch
 
 	header := block.GetHeader()
 	ctxlog.Log("header", header)
-	dbft.BlockManager.Insert(block)
+	dbft.BlockManager.Insert(&block)
 
 	status := dbft.BlockManager.GetBlockStatus(header.CaculateHash())
 	ctxlog.Log("status", status)
@@ -87,6 +87,8 @@ func (dbft DbftConsensus) BlockFromPeer(ctxlog *ctxlog.ContextLog, block blockch
 
 	transactions := block.GetTransactions()
 	receipts := block.GetTxReceipts()
+	ctxlog.Log("txs", transactions)
+	ctxlog.Log("receipts", receipts)
 	// 对区块进行validate和recover，如果区块数据没问题，则发送投票给其他节点
 	if dbft.Blockchain.LastHeader().ValidateBlockStat(*header, transactions, receipts) {
 		ctxlog.Log("SendVote", true)
@@ -291,7 +293,7 @@ func (dbft DbftConsensus) Pack() {
 
 	// 增加打包信息
 	dbft.SaveHeader(*block.GetHeader())
-	dbft.BlockManager.Insert(*block)
+	dbft.BlockManager.Insert(block)
 	dbft.BlockManager.SetBlockStatus(block.Hash, blockchain.BLOCK_VALID)
 	dbft.BlockManager.SetBlockStatusByHeight(block.GetHeader().Height, block.GetHeader().Timestamp)
 
@@ -314,7 +316,7 @@ func (dbft DbftConsensus) RecoverFromDB() {
 		accounts := conf.EKTConfig.GenesisBlockAccounts
 		block := blockchain.CreateGenesisBlock(accounts)
 		header = block.GetHeader()
-		dbft.SaveBlock(block, nil)
+		dbft.SaveBlock(&block, nil)
 	}
 	dbft.Blockchain.SetLastHeader(*header)
 	log.Info("Recovered from local database.")
@@ -356,7 +358,7 @@ func (dbft DbftConsensus) SyncHeight(height int64) bool {
 		receipts := block.GetTxReceipts()
 		last := dbft.Blockchain.LastHeader()
 		if last.ValidateBlockStat(*header, transactions, receipts) {
-			dbft.SaveBlock(*block, votes)
+			dbft.SaveBlock(block, votes)
 		}
 	}
 	return false
@@ -396,7 +398,7 @@ func (dbft DbftConsensus) RecieveVoteResult(votes blockchain.Votes) bool {
 	// 区块已经校验但未写入链中
 	if status == blockchain.BLOCK_VALID || status == blockchain.BLOCK_VOTED {
 		block := dbft.BlockManager.GetBlock(votes[0].Vote.BlockHash)
-		dbft.SaveBlock(*block, votes)
+		dbft.SaveBlock(block, votes)
 		round := dbft.GetRound()
 		if round.Peers[(round.CurrentIndex+1)%round.Len()].Equal(conf.EKTConfig.Node) {
 			dbft.Pack()
@@ -407,13 +409,14 @@ func (dbft DbftConsensus) RecieveVoteResult(votes blockchain.Votes) bool {
 	return false
 }
 
-func (dbft DbftConsensus) SaveBlock(block blockchain.Block, votes blockchain.Votes) {
-	dbft.Round.UpdateIndex(hex.EncodeToString(block.GetHeader().Coinbase))
+func (dbft DbftConsensus) SaveBlock(block *blockchain.Block, votes blockchain.Votes) {
+	header := *block.GetHeader()
+	dbft.Round.UpdateIndex(block.Miner.Account)
 	encapdb.SetVoteResults(dbft.Blockchain.ChainId, hex.EncodeToString(block.Hash), votes)
-	encapdb.SetBlockByHeight(dbft.Blockchain.ChainId, block.GetHeader().Height, block)
-	encapdb.SetHeaderByHeight(dbft.Blockchain.ChainId, block.GetHeader().Height, *block.GetHeader())
-	encapdb.SetLastHeader(dbft.Blockchain.ChainId, *block.GetHeader())
-	dbft.Blockchain.SetLastHeader(*block.GetHeader())
+	encapdb.SetBlockByHeight(dbft.Blockchain.ChainId, header.Height, *block)
+	encapdb.SetHeaderByHeight(dbft.Blockchain.ChainId, header.Height, header)
+	encapdb.SetLastHeader(dbft.Blockchain.ChainId, header)
+	dbft.Blockchain.SetLastHeader(header)
 	dbft.Blockchain.NotifyPool(block.GetTransactions())
 }
 

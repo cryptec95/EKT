@@ -67,7 +67,9 @@ func (sorted *UserTxs) Save(tx *userevent.Transaction) (ready bool) {
 }
 
 func (sorted *UserTxs) Remove(tx userevent.Transaction) {
-	delete(sorted.Txs, tx.Nonce)
+	if _, exist := sorted.Txs[tx.Nonce]; exist {
+		delete(sorted.Txs, tx.Nonce)
+	}
 	if sorted.Nonce < tx.Nonce {
 		sorted.Nonce = tx.Nonce
 	}
@@ -100,5 +102,7 @@ func (m *UsersTxs) Remove(tx userevent.Transaction) {
 	m.locker.Lock()
 	defer m.locker.Unlock()
 	userTxs := m.m[hex.EncodeToString(tx.From)]
-	userTxs.Remove(tx)
+	if userTxs != nil {
+		userTxs.Remove(tx)
+	}
 }
