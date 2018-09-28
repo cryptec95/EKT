@@ -6,6 +6,7 @@ import (
 	"github.com/EducationEKT/EKT/core/types"
 	"github.com/EducationEKT/EKT/core/userevent"
 	"github.com/EducationEKT/EKT/crypto"
+	"github.com/EducationEKT/EKT/db"
 )
 
 const EMPTY_TX = "ca4510738395af1429224dd785675309c344b2b549632e20275c69b15ed1d210"
@@ -33,11 +34,6 @@ func GetBlockFromBytes(data []byte) *Block {
 		return nil
 	}
 	return &block
-}
-
-func (block *Block) AddTransaction(transaction userevent.Transaction, receipt userevent.TransactionReceipt) {
-	block.Transactions = append(block.Transactions, transaction)
-	block.TransactionReceipts = append(block.TransactionReceipts, receipt)
 }
 
 func (block Block) GetTransactions() []userevent.Transaction {
@@ -105,7 +101,9 @@ func (block *Block) NewTransaction(tx userevent.Transaction) *userevent.Transact
 func (block *Block) Finish() {
 	block.header.UpdateMiner()
 	block.header.TxHash = crypto.Sha3_256(block.Transactions.Bytes())
+	db.GetDBInst().Set(block.header.TxHash, block.Transactions.Bytes())
 	block.header.ReceiptHash = crypto.Sha3_256(block.TransactionReceipts.Bytes())
+	db.GetDBInst().Set(block.header.ReceiptHash, block.TransactionReceipts.Bytes())
 	block.Hash = block.header.CaculateHash()
 }
 
