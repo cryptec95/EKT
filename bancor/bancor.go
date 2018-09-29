@@ -1,18 +1,75 @@
 package bancor
 
-import "math"
+import (
+	"encoding/json"
+	"github.com/EducationEKT/EKT/core/userevent"
+	"math"
+)
 
 type Bancor struct {
-	CW              float64
-	ConnectAmount   float64
-	TotalSmartToken float64
+	CW                  float64
+	ConnectAmount       float64
+	TotalSmartToken     float64
+	InitConnectAmount   float64
+	InitSmartToken      float64
+	ConnectTokenAddress string
+	SmartTokenAddress   string
 }
 
-func NewBancor(cw int, connectAmount, smartTokenAmount float64) *Bancor {
+func NewBancor(cw int, connectAmount, smartTokenAmount float64, connectTokenAddress, smartTokenAddress string) *Bancor {
 	return &Bancor{
-		CW:              float64(cw) / 1000000,
-		ConnectAmount:   connectAmount,
-		TotalSmartToken: smartTokenAmount,
+		CW:                  float64(cw) / 1000000,
+		ConnectAmount:       connectAmount,
+		InitConnectAmount:   connectAmount,
+		TotalSmartToken:     smartTokenAmount,
+		InitSmartToken:      smartTokenAmount,
+		ConnectTokenAddress: connectTokenAddress,
+		SmartTokenAddress:   smartTokenAddress,
+	}
+}
+
+func (b *Bancor) Recover(data []byte) bool {
+	var nb Bancor
+	err := json.Unmarshal(data, &nb)
+	if err == nil {
+		*b = nb
+		return true
+	}
+	return false
+}
+
+func (b Bancor) Data() []byte {
+	data, _ := json.Marshal(b)
+	return data
+}
+
+func (b *Bancor) Call(tx userevent.Transaction) (*userevent.TransactionReceipt, []byte) {
+	if tx.TokenAddress == b.SmartTokenAddress {
+		amount := b.Sell(float64(tx.Amount))
+		if amount > b.ConnectAmount-b.InitConnectAmount {
+			return userevent.ContractRefuseTx(tx), nil
+		} else {
+			subTx := userevent.NewSubTransaction(tx.TxId(), tx.To, tx.From, int64(amount), "From bancor contract", b.ConnectTokenAddress)
+			receipt := userevent.NewTransactionReceipt(tx, true, userevent.FailType_SUCCESS)
+			subTransactions := make(userevent.SubTransactions, 0)
+			subTransactions = append(subTransactions, *subTx)
+			receipt.SubTransactions = subTransactions
+			return &receipt, b.Data()
+		}
+	} else if tx.TokenAddress == b.ConnectTokenAddress {
+		amount := b.Buy(float64(tx.Amount))
+		if amount > b.TotalSmartToken-b.InitSmartToken {
+			return userevent.ContractRefuseTx(tx), nil
+		} else {
+			subTx := userevent.NewSubTransaction(tx.TxId(), tx.To, tx.From, int64(amount), "From bancor contract", b.SmartTokenAddress)
+			receipt := userevent.NewTransactionReceipt(tx, true, userevent.FailType_SUCCESS)
+			subTransactions := make(userevent.SubTransactions, 0)
+			subTransactions = append(subTransactions, *subTx)
+			receipt.SubTransactions = subTransactions
+			return &receipt, b.Data()
+		}
+	} else {
+		return userevent.ContractRefuseTx(tx), nil
 	}
 }
 
