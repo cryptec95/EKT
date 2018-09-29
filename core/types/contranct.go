@@ -6,9 +6,20 @@ package types
 
 type ContractAccount struct {
 	Address      HexBytes         `json:"address"`
-	CodeHash     HexBytes         `json:"codeHash"`
 	Amount       int64            `json:"amount"`
 	Gas          int64            `json:"gas"`
-	ContractData HexBytes         `json:"data"`
+	CodeHash     HexBytes         `json:"codeHash"`
+	ContractData []byte           `json:"data"`
 	Balances     map[string]int64 `json:"balances"`
+}
+
+func NewContractAccount(address []byte, contractHash []byte) *ContractAccount {
+	return &ContractAccount{
+		Address:      address,
+		Amount:       0,
+		Gas:          0,
+		Balances:     make(map[string]int64),
+		CodeHash:     contractHash,
+		ContractData: nil,
+	}
 }

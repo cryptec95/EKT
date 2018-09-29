@@ -14,23 +14,14 @@ type Account struct {
 	Balances  map[string]int64           `json:"balances"`
 }
 
-func CreateAccount(address []byte, Amount int64) Account {
-	return Account{
-		Address:  address,
-		Amount:   Amount,
-		Nonce:    0,
-		Gas:      0,
-		Balances: make(map[string]int64),
-	}
-}
-
 func NewAccount(address []byte) *Account {
 	return &Account{
-		Address:  address,
-		Nonce:    0,
-		Gas:      0,
-		Amount:   0,
-		Balances: make(map[string]int64),
+		Address:   address,
+		Nonce:     0,
+		Gas:       0,
+		Amount:    0,
+		Balances:  make(map[string]int64),
+		Contracts: make(map[string]ContractAccount),
 	}
 }
 
@@ -51,9 +42,8 @@ func (account *Account) AddAmount(amount int64) {
 	account.Amount = account.Amount + amount
 }
 
-func (account *Account) ReduceAmount(amount int64, gas int64) {
+func (account *Account) ReduceAmount(amount int64) {
 	account.Amount -= amount
-	account.Gas -= gas
 	account.Nonce++
 }
 

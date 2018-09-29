@@ -16,7 +16,6 @@ const (
 	FailType_NO_GAS
 	FailType_Invalid_NONCE
 	FailType_NO_ENOUGH_AMOUNT
-
 	FailType_CONTRACT_ERROR
 )
 
@@ -41,7 +40,18 @@ type SubTransaction struct {
 	To           types.HexBytes `json:"to"`
 	Amount       int64          `json:"amount"`
 	Data         string         `json:"data"`
-	TokenAddress types.HexBytes `json:"tokenAddress"`
+	TokenAddress string         `json:"tokenAddress"`
+}
+
+func NewSubTransaction(parent, from, to []byte, amount int64, data string, tokenAddress string) *SubTransaction {
+	return &SubTransaction{
+		Parent:       parent,
+		From:         from,
+		To:           to,
+		Amount:       amount,
+		Data:         data,
+		TokenAddress: tokenAddress,
+	}
 }
 
 type SubTransactions []SubTransaction
@@ -74,6 +84,15 @@ func NewTransactionReceipt(tx Transaction, success bool, failType int) Transacti
 		Fee:      tx.Fee,
 		FailType: failType,
 	}
+}
+
+func ContractRefuseTx(tx Transaction) *TransactionReceipt {
+	receipt := NewTransactionReceipt(tx, false, FailType_CONTRACT_ERROR)
+	subTx := NewSubTransaction(tx.TxId(), tx.To, tx.From, tx.Amount, "contract refused", tx.TokenAddress)
+	subTransactions := make(SubTransactions, 0)
+	subTransactions = append(subTransactions, *subTx)
+	receipt.SubTransactions = subTransactions
+	return &receipt
 }
 
 func (receipt1 TransactionReceipt) EqualsTo(receipt2 TransactionReceipt) bool {
