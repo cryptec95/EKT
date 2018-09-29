@@ -1,8 +1,10 @@
 package blockchain
 
 import (
+	"bytes"
 	"encoding/hex"
 	"encoding/json"
+	"github.com/EducationEKT/EKT/contract"
 	"github.com/EducationEKT/EKT/core/types"
 	"github.com/EducationEKT/EKT/core/userevent"
 	"github.com/EducationEKT/EKT/crypto"
@@ -86,16 +88,66 @@ func (block Block) GetHeader() *Header {
 }
 
 func (block *Block) NewTransaction(tx userevent.Transaction) *userevent.TransactionReceipt {
-	if len(tx.From) != 32 || len(tx.To) != 32 {
+	if len(tx.From) != 32 {
 		return nil
 	}
-	receipt := block.header.NewTransaction(tx)
-	if receipt.Success {
-		block.header.TotalFee += tx.Fee
+	switch len(tx.To) {
+	case 32:
+		receipt := block.header.NewTransaction(tx)
+		block.Transactions = append(block.Transactions, tx)
+		block.TransactionReceipts = append(block.TransactionReceipts, receipt)
+		return &receipt
+	case 64:
+		block.GetHeader().CheckContractTransfer(tx)
+		account, err := block.GetHeader().GetAccount(tx.To[32:])
+		if err != nil || account == nil {
+			if hex.EncodeToString(tx.To[:32]) == contract.SYSTEM_AUTHOR {
+				account = types.NewAccount(tx.To[:32])
+				switch hex.EncodeToString(tx.To[32:]) {
+				case contract.EKT_GAS_BANCOR_CONTRACT:
+					contractAccount := types.NewContractAccount(tx.To[32:], nil)
+					contractAccount.Gas = 1e8
+					account.Contracts[hex.EncodeToString(tx.To[32:])] = *contractAccount
+				default:
+					// TODO other system contract now open now
+				}
+				block.GetHeader().StatTree.MustInsert(tx.To[:32], account.ToBytes())
+			} else {
+				// TODO user contract not open now
+				return nil
+			}
+		}
+		receipt, _ := contract.Run(tx, account)
+		if block.CheckSubTransaction(tx, receipt.SubTransactions) {
+			txs := make(userevent.SubTransactions, 0)
+			subTx := userevent.NewSubTransaction(tx.TxId(), tx.From, tx.To, tx.Amount, tx.Data, tx.TokenAddress)
+			txs = append(txs, *subTx)
+			txs = append(txs, receipt.SubTransactions...)
+		} else {
+			receipt = userevent.ContractRefuseTx(tx)
+		}
+		txs := make(userevent.SubTransactions, 0)
+		subTx := userevent.NewSubTransaction(tx.TxId(), tx.From, tx.To, tx.Amount, tx.Data, tx.TokenAddress)
+		txs = append(txs, *subTx)
+		txs = append(txs, receipt.SubTransactions...)
+		receipt.SubTransactions = txs
+		receipt.Success = block.GetHeader().NewSubTransaction(txs)
+		block.Transactions = append(block.Transactions, tx)
+		block.TransactionReceipts = append(block.TransactionReceipts, *receipt)
+		return receipt
 	}
-	block.Transactions = append(block.Transactions, tx)
-	block.TransactionReceipts = append(block.TransactionReceipts, receipt)
-	return &receipt
+	return nil
+}
+
+func (block *Block) CheckSubTransaction(tx userevent.Transaction, subTxs userevent.SubTransactions) bool {
+	if len(subTxs) > 0 {
+		for _, subTx := range subTxs {
+			if !bytes.EqualFold(subTx.From, tx.To) {
+				return false
+			}
+		}
+	}
+	return true
 }
 
 func (block *Block) Finish() {

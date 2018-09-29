@@ -90,11 +90,70 @@ func NewHeader(last Header, parentHash types.HexBytes, coinbase types.HexBytes) 
 	return block
 }
 
-func (header *Header) NewTransaction(tx userevent.Transaction) userevent.TransactionReceipt {
+func (header *Header) NewSubTransaction(tx userevent.SubTransactions) bool {
+	// TODO sub transaction
+	return true
+}
+
+func (header *Header) CheckAmount(tx userevent.Transaction) (*types.Account, bool) {
 	account, err := header.GetAccount(tx.GetFrom())
 	if err != nil || account == nil || account.Gas < tx.Fee {
-		return userevent.NewTransactionReceipt(tx, false, userevent.FailType_NO_GAS)
+		return account, false
 	}
+	switch tx.TokenAddress {
+	case types.EKTAddress:
+		if account.Amount < tx.Amount {
+			return account, false
+		}
+	case types.GasAddress:
+		if account.Gas < tx.Amount+tx.Fee {
+			return account, false
+		}
+	default:
+		if account.Balances == nil || account.Balances[tx.TokenAddress] < tx.Amount {
+			return account, false
+		}
+	}
+	account.BurnGas(tx.Fee)
+	header.StatTree.MustInsert(account.Address, account.ToBytes())
+	return account, true
+}
+
+func (header *Header) CheckContractTransfer(tx userevent.Transaction) bool {
+	if _, success := header.CheckAmount(tx); !success {
+		return false
+		//} else {
+		//	address, sub := tx.GetTo()[:32], tx.GetTo()[32:]
+		//	account, err := header.GetAccount(address)
+		//	if err != nil || account == nil {
+		//		if hex.EncodeToString(address) == contract.SYSTEM_AUTHOR {
+		//			account = types.NewAccount(address)
+		//		}
+		//	}
+		//	if account != nil {
+		//		if account.Contracts == nil {
+		//			account.Contracts = make(map[string]types.ContractAccount)
+		//		}
+		//		c, exist := account.Contracts[hex.EncodeToString(sub)]
+		//		if !exist {
+		//			contractAccount := types.NewContractAccount(sub, nil)
+		//			c = *contractAccount
+		//		}
+		//		account.Contracts[hex.EncodeToString(sub)] = c
+		//		header.StatTree.MustInsert(account.Address, account.ToBytes())
+		//	}
+	}
+
+	return true
+}
+
+func (header *Header) NewTransaction(tx userevent.Transaction) userevent.TransactionReceipt {
+	account, success := header.CheckAmount(tx)
+	if !success {
+		return userevent.NewTransactionReceipt(tx, false, userevent.FailType_NO_ENOUGH_AMOUNT)
+	}
+
+	header.TotalFee += tx.Fee
 
 	receiverAccount, err := header.GetAccount(tx.GetTo())
 	if receiverAccount == nil || err != nil {
@@ -107,7 +166,7 @@ func (header *Header) NewTransaction(tx userevent.Transaction) userevent.Transac
 		if account.GetAmount() < tx.Amount {
 			return userevent.NewTransactionReceipt(tx, false, userevent.FailType_NO_ENOUGH_AMOUNT)
 		} else {
-			account.ReduceAmount(tx.Amount, tx.Fee)
+			account.ReduceAmount(tx.Amount)
 			receiverAccount.AddAmount(tx.Amount)
 			header.StatTree.MustInsert(tx.GetFrom(), account.ToBytes())
 			header.StatTree.MustInsert(tx.GetTo(), receiverAccount.ToBytes())
@@ -118,7 +177,6 @@ func (header *Header) NewTransaction(tx userevent.Transaction) userevent.Transac
 			return userevent.NewTransactionReceipt(tx, false, userevent.FailType_NO_ENOUGH_AMOUNT)
 		} else {
 			account.Balances[tx.TokenAddress] -= tx.Amount
-			account.BurnGas(tx.Fee)
 			account.Nonce++
 			if receiverAccount.Balances == nil {
 				receiverAccount.Balances = make(map[string]int64)
