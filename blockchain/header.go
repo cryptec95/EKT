@@ -1,7 +1,7 @@
 package blockchain
 
 import (
-	"bytes"
+	"encoding/hex"
 	"encoding/json"
 	"time"
 
@@ -90,9 +90,134 @@ func NewHeader(last Header, parentHash types.HexBytes, coinbase types.HexBytes) 
 	return block
 }
 
-func (header *Header) NewSubTransaction(tx userevent.SubTransactions) bool {
-	// TODO sub transaction
+func (header *Header) NewSubTransaction(txs userevent.SubTransactions) bool {
+	m := make(map[string]*types.Account)
+	for _, tx := range txs {
+		from, exist1 := m[hex.EncodeToString(tx.From[:32])]
+		to, exist2 := m[hex.EncodeToString(tx.To[:32])]
+		if !exist1 {
+			_from, err := header.GetAccount(tx.From[:32])
+			if err != nil {
+				return false
+			}
+			from = _from
+		}
+		if !exist2 {
+			_to, err := header.GetAccount(tx.To[:32])
+			if err != nil {
+				_to = types.NewAccount(tx.To[:32])
+			}
+			if _, exist := _to.Contracts[hex.EncodeToString(tx.To[32:])]; !exist {
+				log.Crit("no such contract address")
+				return false
+			}
+			to = _to
+		}
+		if !header.HandleTx(from, to, tx) {
+			return false
+		} else {
+			m[hex.EncodeToString(tx.From[:32])] = from
+			m[hex.EncodeToString(tx.To[:32])] = to
+		}
+	}
+	for _, account := range m {
+		header.StatTree.MustInsert(account.Address, account.ToBytes())
+	}
 	return true
+}
+
+func (header *Header) HandleTx(from, to *types.Account, tx userevent.SubTransaction) bool {
+	if !header.CheckSubTx(from, to, tx) {
+		return false
+	} else {
+		return header.Transfer(from, to, tx)
+	}
+}
+
+func (header *Header) Transfer(from, to *types.Account, tx userevent.SubTransaction) bool {
+	if len(tx.From) == 32 {
+		switch tx.TokenAddress {
+		case types.EKTAddress:
+			from.Amount -= tx.Amount
+		case types.GasAddress:
+			from.Gas -= tx.Amount
+		default:
+			from.Balances[tx.TokenAddress] -= tx.Amount
+		}
+	} else {
+		contractAccount := from.Contracts[hex.EncodeToString(tx.From[32:])]
+		switch tx.TokenAddress {
+		case types.EKTAddress:
+			contractAccount.Amount -= tx.Amount
+		case types.GasAddress:
+			contractAccount.Gas -= tx.Amount
+		default:
+			contractAccount.Balances[tx.TokenAddress] -= tx.Amount
+		}
+		from.Contracts[hex.EncodeToString(tx.From[32:])] = contractAccount
+	}
+
+	if len(tx.To) == 32 {
+		switch tx.TokenAddress {
+		case types.EKTAddress:
+			to.Amount += tx.Amount
+		case types.GasAddress:
+			to.Gas += tx.Amount
+		default:
+			if to.Balances == nil {
+				to.Balances = map[string]int64{}
+				to.Balances[tx.TokenAddress] = 0
+			}
+			to.Balances[tx.TokenAddress] += tx.Amount
+		}
+	} else {
+		contractAccount := to.Contracts[hex.EncodeToString(tx.To[32:])]
+		switch tx.TokenAddress {
+		case types.EKTAddress:
+			contractAccount.Amount += tx.Amount
+		case types.GasAddress:
+			contractAccount.Gas += tx.Amount
+		default:
+			if contractAccount.Balances == nil {
+				contractAccount.Balances = map[string]int64{}
+				contractAccount.Balances[tx.TokenAddress] = 0
+			}
+			contractAccount.Balances[tx.TokenAddress] += tx.Amount
+		}
+		to.Contracts[hex.EncodeToString(tx.To[32:])] = contractAccount
+	}
+	return true
+}
+
+func (header *Header) CheckSubTx(from, to *types.Account, tx userevent.SubTransaction) bool {
+	if len(tx.From) == 32 {
+		switch tx.TokenAddress {
+		case types.EKTAddress:
+			return from.Amount > tx.Amount
+		case types.GasAddress:
+			return from.Gas > tx.Amount
+		default:
+			if from.Balances != nil && from.Balances[tx.TokenAddress] > tx.Amount {
+				return true
+			}
+		}
+	} else if from.Contracts == nil {
+		return false
+	} else {
+		subAddr := tx.From[32:]
+		contractAccount := from.Contracts[hex.EncodeToString(subAddr)]
+		switch tx.TokenAddress {
+		case types.EKTAddress:
+			return contractAccount.Amount > tx.Amount
+		case types.GasAddress:
+			return contractAccount.Gas > tx.Amount
+		default:
+			if contractAccount.Balances != nil && contractAccount.Balances[tx.TokenAddress] > tx.Amount {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func (header *Header) CheckAmount(tx userevent.Transaction) (*types.Account, bool) {
@@ -147,48 +272,48 @@ func (header *Header) CheckContractTransfer(tx userevent.Transaction) bool {
 	return true
 }
 
-func (header *Header) NewTransaction(tx userevent.Transaction) userevent.TransactionReceipt {
-	account, success := header.CheckAmount(tx)
-	if !success {
-		return userevent.NewTransactionReceipt(tx, false, userevent.FailType_NO_ENOUGH_AMOUNT)
-	}
-
-	header.TotalFee += tx.Fee
-
-	receiverAccount, err := header.GetAccount(tx.GetTo())
-	if receiverAccount == nil || err != nil {
-		receiverAccount = types.NewAccount(tx.GetTo())
-	}
-
-	if tx.Nonce != account.Nonce+1 {
-		return userevent.NewTransactionReceipt(tx, false, userevent.FailType_Invalid_NONCE)
-	} else if tx.TokenAddress == "" {
-		if account.GetAmount() < tx.Amount {
-			return userevent.NewTransactionReceipt(tx, false, userevent.FailType_NO_ENOUGH_AMOUNT)
-		} else {
-			account.ReduceAmount(tx.Amount)
-			receiverAccount.AddAmount(tx.Amount)
-			header.StatTree.MustInsert(tx.GetFrom(), account.ToBytes())
-			header.StatTree.MustInsert(tx.GetTo(), receiverAccount.ToBytes())
-			return userevent.NewTransactionReceipt(tx, true, userevent.FailType_SUCCESS)
-		}
-	} else {
-		if account.Balances[tx.TokenAddress] < tx.Amount {
-			return userevent.NewTransactionReceipt(tx, false, userevent.FailType_NO_ENOUGH_AMOUNT)
-		} else {
-			account.Balances[tx.TokenAddress] -= tx.Amount
-			account.Nonce++
-			if receiverAccount.Balances == nil {
-				receiverAccount.Balances = make(map[string]int64)
-				receiverAccount.Balances[tx.TokenAddress] = 0
-			}
-			receiverAccount.Balances[tx.TokenAddress] += tx.Amount
-			header.StatTree.MustInsert(tx.GetFrom(), account.ToBytes())
-			header.StatTree.MustInsert(tx.GetTo(), receiverAccount.ToBytes())
-			return userevent.NewTransactionReceipt(tx, true, userevent.FailType_SUCCESS)
-		}
-	}
-}
+//func (header *Header) NewTransaction(tx userevent.Transaction) userevent.TransactionReceipt {
+//	account, success := header.CheckAmount(tx)
+//	if !success {
+//		return userevent.NewTransactionReceipt(tx, false, userevent.FailType_NO_ENOUGH_AMOUNT)
+//	}
+//
+//	header.TotalFee += tx.Fee
+//
+//	receiverAccount, err := header.GetAccount(tx.GetTo())
+//	if receiverAccount == nil || err != nil {
+//		receiverAccount = types.NewAccount(tx.GetTo())
+//	}
+//
+//	if tx.Nonce != account.Nonce+1 {
+//		return userevent.NewTransactionReceipt(tx, false, userevent.FailType_Invalid_NONCE)
+//	} else if tx.TokenAddress == "" {
+//		if account.GetAmount() < tx.Amount {
+//			return userevent.NewTransactionReceipt(tx, false, userevent.FailType_NO_ENOUGH_AMOUNT)
+//		} else {
+//			account.ReduceAmount(tx.Amount)
+//			receiverAccount.AddAmount(tx.Amount)
+//			header.StatTree.MustInsert(tx.GetFrom(), account.ToBytes())
+//			header.StatTree.MustInsert(tx.GetTo(), receiverAccount.ToBytes())
+//			return userevent.NewTransactionReceipt(tx, true, userevent.FailType_SUCCESS)
+//		}
+//	} else {
+//		if account.Balances[tx.TokenAddress] < tx.Amount {
+//			return userevent.NewTransactionReceipt(tx, false, userevent.FailType_NO_ENOUGH_AMOUNT)
+//		} else {
+//			account.Balances[tx.TokenAddress] -= tx.Amount
+//			account.Nonce++
+//			if receiverAccount.Balances == nil {
+//				receiverAccount.Balances = make(map[string]int64)
+//				receiverAccount.Balances[tx.TokenAddress] = 0
+//			}
+//			receiverAccount.Balances[tx.TokenAddress] += tx.Amount
+//			header.StatTree.MustInsert(tx.GetFrom(), account.ToBytes())
+//			header.StatTree.MustInsert(tx.GetTo(), receiverAccount.ToBytes())
+//			return userevent.NewTransactionReceipt(tx, true, userevent.FailType_SUCCESS)
+//		}
+//	}
+//}
 
 func FromBytes2Header(data []byte) *Header {
 	var header Header
@@ -199,35 +324,35 @@ func FromBytes2Header(data []byte) *Header {
 	return &header
 }
 
-func (header Header) ValidateBlockStat(next Header, transactions []userevent.Transaction, receipts userevent.Receipts) bool {
-	log.Info("Validating header stat merkler proof.")
-
-	//根据上一个区块头生成一个新的区块
-	_next := NewHeader(header, header.CaculateHash(), next.Coinbase)
-
-	//让新生成的区块执行peer传过来的body中的user events进行计算
-	if len(transactions) > 0 {
-		for i, transaction := range transactions {
-			receipt := receipts[i]
-			if receipt.Fee != transaction.Fee {
-				transaction.Fee = receipt.Fee
-			}
-			_receipt := _next.NewTransaction(transaction)
-			if !receipt.EqualsTo(_receipt) {
-				return false
-			}
-		}
-	}
-
-	_next.UpdateMiner()
-
-	// 判断默克尔根是否相同
-	if !bytes.Equal(next.StatTree.Root, _next.StatTree.Root) || !bytes.Equal(next.TokenTree.Root, _next.TokenTree.Root) {
-		return false
-	}
-
-	return true
-}
+//func (header Header) ValidateBlockStat(next Header, transactions []userevent.Transaction, receipts userevent.Receipts) bool {
+//	log.Info("Validating header stat merkler proof.")
+//
+//	//根据上一个区块头生成一个新的区块
+//	_next := NewHeader(header, header.CaculateHash(), next.Coinbase)
+//
+//	//让新生成的区块执行peer传过来的body中的user events进行计算
+//	if len(transactions) > 0 {
+//		for i, transaction := range transactions {
+//			receipt := receipts[i]
+//			if receipt.Fee != transaction.Fee {
+//				transaction.Fee = receipt.Fee
+//			}
+//			_receipt := _next.NewTransaction(transaction)
+//			if !receipt.EqualsTo(_receipt) {
+//				return false
+//			}
+//		}
+//	}
+//
+//	_next.UpdateMiner()
+//
+//	// 判断默克尔根是否相同
+//	if !bytes.Equal(next.StatTree.Root, _next.StatTree.Root) || !bytes.Equal(next.TokenTree.Root, _next.TokenTree.Root) {
+//		return false
+//	}
+//
+//	return true
+//}
 
 func (header *Header) UpdateMiner() {
 	account, err := header.GetAccount(header.Coinbase)

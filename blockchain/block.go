@@ -9,6 +9,7 @@ import (
 	"github.com/EducationEKT/EKT/core/userevent"
 	"github.com/EducationEKT/EKT/crypto"
 	"github.com/EducationEKT/EKT/db"
+	"github.com/EducationEKT/EKT/log"
 )
 
 const EMPTY_TX = "ca4510738395af1429224dd785675309c344b2b549632e20275c69b15ed1d210"
@@ -92,49 +93,54 @@ func (block *Block) NewTransaction(tx userevent.Transaction) *userevent.Transact
 		return nil
 	}
 	switch len(tx.To) {
-	case 32:
-		receipt := block.header.NewTransaction(tx)
+	case types.AddressLength:
+		// TODO 1  !importent add nonce  user.nonce++
+		// TODO 2 !importent gas->KET
+		txs := make(userevent.SubTransactions, 0)
+		subTx := userevent.NewSubTransaction(tx.TxId(), tx.From, tx.To, tx.Amount, tx.Data, tx.TokenAddress)
+		txs = append(txs, *subTx)
+		receipt := userevent.NewTransactionReceipt(tx, true, userevent.FailType_SUCCESS)
+		receipt.SubTransactions = txs
+		receipt.Success = block.GetHeader().NewSubTransaction(txs)
+		if !receipt.Success {
+			receipt.FailType = userevent.FailType_NO_ENOUGH_AMOUNT
+		}
 		block.Transactions = append(block.Transactions, tx)
 		block.TransactionReceipts = append(block.TransactionReceipts, receipt)
 		return &receipt
-	case 64:
+	case types.ContractAddressLength:
 		block.GetHeader().CheckContractTransfer(tx)
-		account, err := block.GetHeader().GetAccount(tx.To[32:])
-		if err != nil || account == nil {
-			if hex.EncodeToString(tx.To[:32]) == contract.SYSTEM_AUTHOR {
-				account = types.NewAccount(tx.To[:32])
-				switch hex.EncodeToString(tx.To[32:]) {
-				case contract.EKT_GAS_BANCOR_CONTRACT:
-					contractAccount := types.NewContractAccount(tx.To[32:], nil)
-					contractAccount.Gas = 1e8
-					account.Contracts[hex.EncodeToString(tx.To[32:])] = *contractAccount
-				default:
-					// TODO other system contract now open now
-				}
-				block.GetHeader().StatTree.MustInsert(tx.To[:32], account.ToBytes())
-			} else {
-				// TODO user contract not open now
-				return nil
+		to, err := block.GetHeader().GetAccount(tx.To[:32])
+		if err == nil && to != nil {
+			if _, exist := to.Contracts[hex.EncodeToString(tx.To[32:])]; !exist {
+				contract.InitContract(tx, to)
 			}
+		} else {
+			to = types.NewAccount(tx.To[:32])
+			contract.InitContract(tx, to)
 		}
-		receipt, _ := contract.Run(tx, account)
-		if block.CheckSubTransaction(tx, receipt.SubTransactions) {
+		if _, exist := to.Contracts[hex.EncodeToString(tx.To[32:])]; !exist {
+			log.Crit("Invalid tx, %s", string(tx.Bytes()))
+			return nil
+		} else {
+			receipt, data := contract.Run(tx, to)
+			ca := to.Contracts[hex.EncodeToString(tx.To[32:])]
+			ca.ContractData = data
+			to.Contracts[hex.EncodeToString(tx.To[32:])] = ca
+			block.GetHeader().StatTree.MustInsert(to.Address, to.ToBytes())
+			if !block.CheckSubTransaction(tx, receipt.SubTransactions) {
+				receipt = userevent.ContractRefuseTx(tx)
+			}
 			txs := make(userevent.SubTransactions, 0)
 			subTx := userevent.NewSubTransaction(tx.TxId(), tx.From, tx.To, tx.Amount, tx.Data, tx.TokenAddress)
 			txs = append(txs, *subTx)
 			txs = append(txs, receipt.SubTransactions...)
-		} else {
-			receipt = userevent.ContractRefuseTx(tx)
+			receipt.SubTransactions = txs
+			block.GetHeader().NewSubTransaction(txs)
+			block.Transactions = append(block.Transactions, tx)
+			block.TransactionReceipts = append(block.TransactionReceipts, *receipt)
+			return receipt
 		}
-		txs := make(userevent.SubTransactions, 0)
-		subTx := userevent.NewSubTransaction(tx.TxId(), tx.From, tx.To, tx.Amount, tx.Data, tx.TokenAddress)
-		txs = append(txs, *subTx)
-		txs = append(txs, receipt.SubTransactions...)
-		receipt.SubTransactions = txs
-		receipt.Success = block.GetHeader().NewSubTransaction(txs)
-		block.Transactions = append(block.Transactions, tx)
-		block.TransactionReceipts = append(block.TransactionReceipts, *receipt)
-		return receipt
 	}
 	return nil
 }
@@ -157,6 +163,15 @@ func (block *Block) Finish() {
 	block.header.ReceiptHash = crypto.Sha3_256(block.TransactionReceipts.Bytes())
 	db.GetDBInst().Set(block.header.ReceiptHash, block.TransactionReceipts.Bytes())
 	block.Hash = block.header.CaculateHash()
+}
+
+func (block Block) ValidateNextBlock(next Block) bool {
+	newBlock := CreateBlock(*(block.GetHeader()), next.Miner)
+	for _, tx := range next.GetTransactions() {
+		newBlock.NewTransaction(tx)
+	}
+	newBlock.Finish()
+	return bytes.EqualFold(newBlock.Hash, next.Hash)
 }
 
 func (block *Block) Sign(privKey []byte) error {

@@ -1,6 +1,8 @@
 package blockchain
 
 import (
+	"bytes"
+	"fmt"
 	"github.com/EducationEKT/EKT/ctxlog"
 	"sync"
 	"time"
@@ -103,5 +105,18 @@ func (chain *BlockChain) NewTransaction(tx *userevent.Transaction) bool {
 		return false
 	}
 	chain.Pool.Park(tx, account.GetNonce())
+	return true
+}
+
+func (chain *BlockChain) ValidateBlock(next Block) bool {
+	newBlock := CreateBlock(chain.LastHeader(), next.Miner)
+	newBlock.GetHeader().Timestamp = next.GetHeader().Timestamp
+	for _, tx := range next.GetTransactions() {
+		newBlock.NewTransaction(tx)
+	}
+	newBlock.Finish()
+	if !bytes.EqualFold(newBlock.Hash, next.Hash) {
+		return false
+	}
 	return true
 }
