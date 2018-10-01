@@ -90,7 +90,7 @@ func (dbft DbftConsensus) BlockFromPeer(ctxlog *ctxlog.ContextLog, block blockch
 	ctxlog.Log("txs", transactions)
 	ctxlog.Log("receipts", receipts)
 	// 对区块进行validate和recover，如果区块数据没问题，则发送投票给其他节点
-	if dbft.Blockchain.LastHeader().ValidateBlockStat(*header, transactions, receipts) {
+	if dbft.Blockchain.ValidateBlock(block) {
 		ctxlog.Log("SendVote", true)
 		dbft.BlockManager.SetBlockStatus(header.CaculateHash(), blockchain.BLOCK_VOTED)
 		dbft.SendVote(*header)
@@ -354,10 +354,7 @@ func (dbft DbftConsensus) SyncHeight(height int64) bool {
 		if votes == nil || !votes.Validate() {
 			return false
 		}
-		transactions := block.GetTransactions()
-		receipts := block.GetTxReceipts()
-		last := dbft.Blockchain.LastHeader()
-		if last.ValidateBlockStat(*header, transactions, receipts) {
+		if dbft.Blockchain.ValidateBlock(*block) {
 			dbft.SaveBlock(block, votes)
 		}
 	}
