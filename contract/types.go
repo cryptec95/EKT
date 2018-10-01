@@ -33,18 +33,19 @@ func GetContract(address []byte, account *types.Account) Contract {
 	contract, inited := contracts.m[hex.EncodeToString(address)]
 	contracts.locker.RUnlock()
 
-	subAddress := address[32:]
+	//subAddress := address[32:]
 	if !inited {
-		if account.Contracts != nil {
-			c, exist := account.Contracts[hex.EncodeToString(subAddress)]
-			if !exist {
-				contract = initContract(address)
-			} else {
-				contract.Recover(c.ContractData)
-			}
-		} else {
-			contract = initContract(address)
-		}
+		return initContract(address)
+		//if account.Contracts != nil {
+		//	c, exist := account.Contracts[hex.EncodeToString(subAddress)]
+		//	if !exist {
+		//		contract = initContract(address)
+		//	} else {
+		//		contract.Recover(c.ContractData)
+		//	}
+		//} else {
+		//	contract = initContract(address)
+		//}
 	}
 
 	return contract
@@ -56,7 +57,7 @@ func initContract(address []byte) Contract {
 	case SYSTEM_AUTHOR:
 		switch hex.EncodeToString(subAddress) {
 		case EKT_GAS_BANCOR_CONTRACT:
-			return bancor.NewBancor(EKT_GAS_PARAM_CW, EKT_GAS_PARAM_INIT_CONNECT_TOKEN, EKT_GAS_PARAM_INIT_SMART_TOKEN, types.EKTAddress, types.GasAddress)
+			return bancor.NewBancor(EKT_GAS_PARAM_CW, EKT_GAS_PARAM_INIT_CONNECT_TOKEN, EKT_GAS_PARAM_INIT_SMART_TOKEN, EKT_GAS_PARAM_TOTAL_SMART_TOKEN, types.EKTAddress, types.GasAddress)
 		default:
 			// TODO other contract not open now
 		}
