@@ -2,7 +2,6 @@ package blockchain
 
 import (
 	"bytes"
-	"fmt"
 	"github.com/EducationEKT/EKT/ctxlog"
 	"sync"
 	"time"
