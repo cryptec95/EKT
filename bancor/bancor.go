@@ -7,24 +7,28 @@ import (
 )
 
 type Bancor struct {
-	CW                  float64
+	CW float64
+
 	ConnectAmount       float64
-	TotalSmartToken     float64
 	InitConnectAmount   float64
-	InitSmartToken      float64
 	ConnectTokenAddress string
-	SmartTokenAddress   string
+
+	TotalSmartToken   float64
+	SelledSmartToken  float64
+	SmartTokenAddress string
 }
 
 func NewBancor(cw int, connectAmount, smartTokenAmount, totalSmartToken float64, connectTokenAddress, smartTokenAddress string) *Bancor {
 	return &Bancor{
-		CW:                  float64(cw) / 1000000,
+		CW: float64(cw),
+
 		ConnectAmount:       connectAmount,
 		InitConnectAmount:   connectAmount,
-		TotalSmartToken:     smartTokenAmount,
-		InitSmartToken:      smartTokenAmount,
 		ConnectTokenAddress: connectTokenAddress,
-		SmartTokenAddress:   smartTokenAddress,
+
+		TotalSmartToken:   totalSmartToken,
+		SelledSmartToken:  smartTokenAmount,
+		SmartTokenAddress: smartTokenAddress,
 	}
 }
 
@@ -46,7 +50,7 @@ func (b Bancor) Data() []byte {
 func (b *Bancor) Call(tx userevent.Transaction) (*userevent.TransactionReceipt, []byte) {
 	if tx.TokenAddress == b.SmartTokenAddress {
 		amount := b.Sell(float64(tx.Amount))
-		if amount > b.ConnectAmount-b.InitConnectAmount {
+		if b.ConnectAmount < b.InitConnectAmount {
 			return userevent.ContractRefuseTx(tx), nil
 		} else {
 			subTx := userevent.NewSubTransaction(tx.TxId(), tx.To, tx.From, int64(amount), "From bancor contract", b.ConnectTokenAddress)
@@ -58,7 +62,7 @@ func (b *Bancor) Call(tx userevent.Transaction) (*userevent.TransactionReceipt, 
 		}
 	} else if tx.TokenAddress == b.ConnectTokenAddress {
 		amount := b.Buy(float64(tx.Amount))
-		if amount > b.TotalSmartToken-b.InitSmartToken {
+		if b.TotalSmartToken < b.SelledSmartToken {
 			return userevent.ContractRefuseTx(tx), nil
 		} else {
 			subTx := userevent.NewSubTransaction(tx.TxId(), tx.To, tx.From, int64(amount), "From bancor contract", b.SmartTokenAddress)
@@ -74,18 +78,14 @@ func (b *Bancor) Call(tx userevent.Transaction) (*userevent.TransactionReceipt, 
 }
 
 func (b *Bancor) Buy(ca float64) float64 {
-	amount := b.TotalSmartToken * (math.Pow(1+(ca/b.ConnectAmount), b.CW) - 1)
+	amount := b.SelledSmartToken * (math.Pow(1+(ca/b.ConnectAmount), b.CW/1000000) - 1)
 	b.ConnectAmount += ca
-	b.TotalSmartToken -= amount
+	b.SelledSmartToken += amount
 	return amount
 }
 
 func (b *Bancor) Sell(amount float64) float64 {
 	accuracy := int(1e5)
-
-	if amount <= float64(accuracy) {
-		return b.sell(amount)
-	}
 
 	total := float64(0)
 	for i := 0; i < accuracy; i++ {
@@ -96,8 +96,8 @@ func (b *Bancor) Sell(amount float64) float64 {
 }
 
 func (b *Bancor) sell(amount float64) float64 {
-	cnt := b.ConnectAmount * (math.Pow((b.TotalSmartToken+amount)/b.TotalSmartToken, float64(1)/b.CW) - 1)
-	b.TotalSmartToken += amount
+	cnt := b.ConnectAmount * (math.Pow((b.SelledSmartToken+amount)/b.SelledSmartToken, 1000000/b.CW) - 1)
+	b.SelledSmartToken -= amount
 	b.ConnectAmount -= cnt
 	return cnt
 }
