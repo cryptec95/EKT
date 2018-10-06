@@ -38,17 +38,9 @@ func (account Account) GetAmount() int64 {
 	return account.Amount
 }
 
-func (account *Account) AddAmount(amount int64) {
-	account.Amount = account.Amount + amount
-}
-
-func (account *Account) ReduceAmount(amount int64) {
-	account.Amount -= amount
-	account.Nonce++
-}
-
 func (account *Account) BurnGas(gas int64) {
 	account.Gas = account.Gas - gas
+	account.Nonce++
 }
 
 func FromPubKeyToAddress(pubKey []byte) []byte {
