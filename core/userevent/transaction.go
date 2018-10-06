@@ -13,10 +13,12 @@ import (
 
 const (
 	FailType_SUCCESS = iota
-	FailType_NO_GAS
-	FailType_Invalid_NONCE
-	FailType_NO_ENOUGH_AMOUNT
+	FailType_OUT_OF_GAS
+	FailType_CHECK_FAIL
 	FailType_CONTRACT_ERROR
+	FailType_INVALID_ADDRESS
+	FailType_INVALID_CONTRACT_ADDRESS
+	FailType_INIT_CONTRACT_ACCOUNT_FAIL
 )
 
 type Transactions []Transaction
