@@ -7,7 +7,7 @@ import (
 )
 
 func Run(tx userevent.Transaction, account *types.Account) (*userevent.TransactionReceipt, []byte) {
-	c := GetContract(tx.To, account)
+	c := getContract(tx.To, account)
 	if c == nil {
 		return userevent.ContractRefuseTx(tx), nil
 	}
@@ -15,10 +15,13 @@ func Run(tx userevent.Transaction, account *types.Account) (*userevent.Transacti
 	if receipt == nil {
 		receipt = userevent.ContractRefuseTx(tx)
 	}
+	if receipt.Success {
+		updateContract(tx.To, c)
+	}
 	return receipt, data
 }
 
-func InitContract(tx userevent.Transaction, account *types.Account) bool {
+func InitContractAccount(tx userevent.Transaction, account *types.Account) bool {
 	switch hex.EncodeToString(tx.To[:32]) {
 	case SYSTEM_AUTHOR:
 		switch hex.EncodeToString(tx.To[32:]) {
@@ -29,6 +32,7 @@ func InitContract(tx userevent.Transaction, account *types.Account) bool {
 				account.Contracts = make(map[string]types.ContractAccount)
 			}
 			account.Contracts[hex.EncodeToString(tx.To[32:])] = *contract
+			return true
 		}
 	}
 	return false
