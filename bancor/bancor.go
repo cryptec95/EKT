@@ -78,7 +78,7 @@ func (b *Bancor) Call(tx userevent.Transaction) (*userevent.TransactionReceipt, 
 }
 
 func (b *Bancor) Buy(ca float64) float64 {
-	amount := b.SelledSmartToken * (math.Pow(1+(ca/b.ConnectAmount), b.CW/1000000) - 1)
+	amount := float64(int64(b.SelledSmartToken * (math.Pow(1+(ca/b.ConnectAmount), b.CW/1000000) - 1)))
 	b.ConnectAmount += ca
 	b.SelledSmartToken += amount
 	return amount
@@ -92,7 +92,7 @@ func (b *Bancor) Sell(amount float64) float64 {
 		amt := amount / float64(accuracy)
 		total += b.sell(amt)
 	}
-	return total
+	return float64(int64(total))
 }
 
 func (b *Bancor) sell(amount float64) float64 {
