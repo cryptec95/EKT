@@ -1,7 +1,7 @@
 package types
 
 const (
-	AddressLength         = 32
+	AccountAddressLength  = 32
 	ContractAddressLength = 64
 )
 

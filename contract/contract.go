@@ -8,6 +8,7 @@ import (
 
 func Run(tx userevent.Transaction, account *types.Account) (*userevent.TransactionReceipt, []byte) {
 	c := getContract(tx.To, account)
+	contractData := c.Data()
 	if c == nil {
 		return userevent.ContractRefuseTx(tx), nil
 	}
@@ -16,8 +17,10 @@ func Run(tx userevent.Transaction, account *types.Account) (*userevent.Transacti
 		receipt = userevent.ContractRefuseTx(tx)
 	}
 	if receipt.Success {
-		updateContract(tx.To, c)
+		contractData = data
 	}
+	c.Recover(contractData)
+	updateContract(tx.To, c)
 	return receipt, data
 }
 
