@@ -1,13 +1,18 @@
 package ektclient
 
 import (
+	"bytes"
+	"encoding/hex"
 	"encoding/json"
+	"strconv"
+
 	"github.com/EducationEKT/EKT/blockchain"
 	"github.com/EducationEKT/EKT/conf"
 	"github.com/EducationEKT/EKT/core/types"
+	"github.com/EducationEKT/EKT/crypto"
 	"github.com/EducationEKT/EKT/util"
-	"strconv"
-	"xserver/x_http/x_resp"
+
+	"github.com/EducationEKT/xserver/x_http/x_resp"
 )
 
 type IClient interface {
@@ -15,6 +20,7 @@ type IClient interface {
 	GetHeaderByHeight(height int64) *blockchain.Header
 	GetBlockByHeight(height int64) *blockchain.Block
 	GetLastBlock(peer types.Peer) *blockchain.Header
+	GetHeaderByHash(hash []byte) *blockchain.Header
 
 	// vote
 	GetVotesByBlockHash(hash string) blockchain.Votes
@@ -57,6 +63,20 @@ func (client Client) GetBlockByHeight(height int64) *blockchain.Block {
 		}
 		if block := blockchain.GetBlockFromBytes(body); block != nil {
 			return block
+		}
+	}
+	return nil
+}
+
+func (client Client) GetHeaderByHash(hash []byte) *blockchain.Header {
+	for _, peer := range client.peers {
+		data, err := peer.GetDBValue(hex.EncodeToString(hash))
+		if err == nil && bytes.EqualFold(crypto.Sha3_256(data), hash) {
+			var header blockchain.Header
+			err := json.Unmarshal(data, &header)
+			if err == nil {
+				return &header
+			}
 		}
 	}
 	return nil
