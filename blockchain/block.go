@@ -9,6 +9,7 @@ import (
 	"github.com/EducationEKT/EKT/core/userevent"
 	"github.com/EducationEKT/EKT/crypto"
 	"github.com/EducationEKT/EKT/db"
+	"time"
 )
 
 const EMPTY_TX = "ca4510738395af1429224dd785675309c344b2b549632e20275c69b15ed1d210"
@@ -87,6 +88,10 @@ func (block Block) GetHeader() *Header {
 	return block.header
 }
 
+func (block Block) SetHeader(header *Header) {
+	block.header = header
+}
+
 func (block *Block) NewTransaction(tx userevent.Transaction) *userevent.TransactionReceipt {
 	if !block.GetHeader().CheckTransfer(tx) {
 		receipt := userevent.NewTransactionReceipt(tx, false, userevent.FailType_CHECK_FAIL)
@@ -95,7 +100,7 @@ func (block *Block) NewTransaction(tx userevent.Transaction) *userevent.Transact
 		return &receipt
 	}
 	switch len(tx.To) {
-	case types.AddressLength:
+	case types.AccountAddressLength:
 		txs := make(userevent.SubTransactions, 0)
 		subTx := userevent.NewSubTransaction(tx.TxId(), tx.From, tx.To, tx.Amount, tx.Data, tx.TokenAddress)
 		txs = append(txs, *subTx)
@@ -106,19 +111,12 @@ func (block *Block) NewTransaction(tx userevent.Transaction) *userevent.Transact
 		block.TransactionReceipts = append(block.TransactionReceipts, receipt)
 		return &receipt
 	case types.ContractAddressLength:
-		to, err := block.GetHeader().GetAccount(tx.To[:32])
-		contractAddress := tx.To[32:]
-		if err == nil && to != nil {
-			if _, exist := to.Contracts[hex.EncodeToString(contractAddress)]; !exist {
-				if !contract.InitContractAccount(tx, to) {
-					receipt := userevent.NewTransactionReceipt(tx, false, userevent.FailType_INIT_CONTRACT_ACCOUNT_FAIL)
-					block.Transactions = append(block.Transactions, tx)
-					block.TransactionReceipts = append(block.TransactionReceipts, receipt)
-					return &receipt
-				}
-			}
-		} else {
-			to = types.NewAccount(tx.To[:32])
+		toAccountAddress, toContractAddress := tx.To[:32], tx.To[32:]
+		to, err := block.GetHeader().GetAccount(toAccountAddress)
+		if err != nil || to == nil {
+			to = types.NewAccount(toAccountAddress)
+		}
+		if _, exist := to.Contracts[hex.EncodeToString(toContractAddress)]; !exist {
 			if !contract.InitContractAccount(tx, to) {
 				receipt := userevent.NewTransactionReceipt(tx, false, userevent.FailType_INIT_CONTRACT_ACCOUNT_FAIL)
 				block.Transactions = append(block.Transactions, tx)
@@ -126,32 +124,33 @@ func (block *Block) NewTransaction(tx userevent.Transaction) *userevent.Transact
 				return &receipt
 			}
 		}
-		if _, exist := to.Contracts[hex.EncodeToString(contractAddress)]; !exist {
-			receipt := userevent.NewTransactionReceipt(tx, false, userevent.FailType_INVALID_CONTRACT_ADDRESS)
+		receipt, data := contract.Run(tx, to)
+		if !receipt.Success {
+			_receipt := userevent.NewTransactionReceipt(tx, false, userevent.FailType_CONTRACT_ERROR)
 			block.Transactions = append(block.Transactions, tx)
-			block.TransactionReceipts = append(block.TransactionReceipts, receipt)
-			return &receipt
+			block.TransactionReceipts = append(block.TransactionReceipts, _receipt)
+			return receipt
 		} else {
-			receipt, data := contract.Run(tx, to)
-			if !block.CheckSubTransaction(tx, receipt.SubTransactions) {
-				receipt = userevent.ContractRefuseTx(tx)
-			}
-			if receipt.Success {
-				contractAccount := to.Contracts[hex.EncodeToString(contractAddress)]
-				contractAccount.ContractData = data
-				to.Contracts[hex.EncodeToString(contractAddress)] = contractAccount
-				block.GetHeader().StatTree.MustInsert(to.Address, to.ToBytes())
-			}
-			txs := make(userevent.SubTransactions, 0)
-			subTx := userevent.NewSubTransaction(tx.TxId(), tx.From, tx.To, tx.Amount, tx.Data, tx.TokenAddress)
-			txs = append(txs, *subTx)
-			txs = append(txs, receipt.SubTransactions...)
-			receipt.Success = block.GetHeader().NewSubTransaction(txs)
-			receipt.SubTransactions = txs
+			contractAccount := to.Contracts[hex.EncodeToString(toContractAddress)]
+			contractAccount.ContractData = data
+			to.Contracts[hex.EncodeToString(toContractAddress)] = contractAccount
+			block.GetHeader().StatTree.MustInsert(toAccountAddress, to.ToBytes())
+		}
+		if !block.CheckSubTransaction(tx, receipt.SubTransactions) {
+			_receipt := userevent.NewTransactionReceipt(tx, false, userevent.FailType_CONTRACT_ERROR)
 			block.Transactions = append(block.Transactions, tx)
-			block.TransactionReceipts = append(block.TransactionReceipts, *receipt)
+			block.TransactionReceipts = append(block.TransactionReceipts, _receipt)
 			return receipt
 		}
+		txs := make(userevent.SubTransactions, 0)
+		subTx := userevent.NewSubTransaction(tx.TxId(), tx.From, tx.To, tx.Amount, tx.Data, tx.TokenAddress)
+		txs = append(txs, *subTx)
+		txs = append(txs, receipt.SubTransactions...)
+		receipt.Success = block.GetHeader().NewSubTransaction(txs)
+		receipt.SubTransactions = txs
+		block.Transactions = append(block.Transactions, tx)
+		block.TransactionReceipts = append(block.TransactionReceipts, *receipt)
+		return receipt
 	default:
 		receipt := userevent.NewTransactionReceipt(tx, false, userevent.FailType_INVALID_ADDRESS)
 		block.Transactions = append(block.Transactions, tx)
@@ -173,21 +172,14 @@ func (block *Block) CheckSubTransaction(tx userevent.Transaction, subTxs usereve
 }
 
 func (block *Block) Finish() {
+	block.header.Timestamp = time.Now().UnixNano() / 1e6
 	block.header.UpdateMiner()
 	block.header.TxHash = crypto.Sha3_256(block.Transactions.Bytes())
 	db.GetDBInst().Set(block.header.TxHash, block.Transactions.Bytes())
 	block.header.ReceiptHash = crypto.Sha3_256(block.TransactionReceipts.Bytes())
 	db.GetDBInst().Set(block.header.ReceiptHash, block.TransactionReceipts.Bytes())
 	block.Hash = block.header.CaculateHash()
-}
-
-func (block Block) ValidateNextBlock(next Block) bool {
-	newBlock := CreateBlock(*(block.GetHeader()), next.Miner)
-	for _, tx := range next.GetTransactions() {
-		newBlock.NewTransaction(tx)
-	}
-	newBlock.Finish()
-	return bytes.EqualFold(newBlock.Hash, next.Hash)
+	db.GetDBInst().Set(block.Hash, block.header.Bytes())
 }
 
 func (block *Block) Sign(privKey []byte) error {
