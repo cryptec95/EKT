@@ -99,12 +99,21 @@ func (header *Header) NewSubTransaction(txs userevent.SubTransactions) bool {
 			from, _ = header.GetAccount(tx.From[:32])
 		}
 		if !exist2 {
-			if len(tx.To) != 32 {
-				return false
-			}
-			_to, err := header.GetAccount(tx.To)
+			_to, err := header.GetAccount(tx.To[:32])
 			if err != nil {
-				_to = types.NewAccount(tx.To)
+				if len(tx.To) == 64 {
+					return false
+				} else {
+					_to = types.NewAccount(tx.To)
+				}
+			}
+			if len(tx.To) == 64 {
+				if _to.Contracts == nil {
+					return false
+				}
+				if _, exist := _to.Contracts[hex.EncodeToString(tx.To[32:])]; !exist {
+					return false
+				}
 			}
 			to = _to
 		}
@@ -217,6 +226,9 @@ func (header *Header) CheckSubTx(from, to *types.Account, tx userevent.SubTransa
 
 func (header *Header) CheckFromAndBurnGas(tx userevent.Transaction) bool {
 	if len(tx.From) != 32 {
+		return false
+	}
+	if len(tx.To) != 32 && len(tx.To) != 64 {
 		return false
 	}
 	account, err := header.GetAccount(tx.GetFrom())
