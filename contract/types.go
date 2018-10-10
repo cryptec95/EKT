@@ -6,15 +6,13 @@ import (
 	"github.com/EducationEKT/EKT/core/types"
 	"github.com/EducationEKT/EKT/core/userevent"
 	"math"
-	"sync"
 )
 
 var contracts Contracts
 
 func init() {
 	contracts = Contracts{
-		m:      make(map[string]Contract),
-		locker: sync.RWMutex{},
+		m: make(map[string]Contract),
 	}
 }
 
@@ -25,26 +23,15 @@ type Contract interface {
 }
 
 type Contracts struct {
-	m      map[string]Contract
-	locker sync.RWMutex
+	m map[string]Contract
 }
 
 func getContract(address []byte, account *types.Account) Contract {
-	contracts.locker.RLock()
-	contract, exist := contracts.m[hex.EncodeToString(address)]
-	contracts.locker.RUnlock()
-
-	if !exist {
-		contract = initContract(address, account)
-	}
-
-	return contract
+	return initContract(address, account)
 }
 
 func updateContract(address []byte, c Contract) {
-	contracts.locker.Lock()
 	contracts.m[hex.EncodeToString(address)] = c
-	contracts.locker.Unlock()
 }
 
 func initContract(address []byte, account *types.Account) Contract {
