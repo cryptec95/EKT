@@ -18,7 +18,7 @@ func init() {
 	x_router.Get("/block/api/getHeaderByHeight", getHeaderByHeight)
 	x_router.Get("/block/api/getHeaderByHash", getHeaderByHash)
 	x_router.Get("/block/api/getBlockByHeight", getBlockByHeight)
-	x_router.Post("/block/api/blockFromPeer", broadcast, blockFromPeer)
+	x_router.Post("/block/api/blockFromPeer", blockFromPeer)
 }
 
 func getBlockByHeight(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {

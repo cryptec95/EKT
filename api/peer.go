@@ -49,7 +49,7 @@ func broadcast(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
 		for _, peer := range param.MainChainDelegateNode {
 			if !peer.Equal(conf.EKTConfig.Node) {
 				url := fmt.Sprintf(`http://%s:%d%s?broadcast=true`, peer.Address, peer.Port, req.Path)
-				util.HttpPost(url, req.Body)
+				go util.HttpPost(url, req.Body)
 			}
 		}
 	}

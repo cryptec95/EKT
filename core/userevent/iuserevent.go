@@ -7,6 +7,12 @@ import (
 )
 
 func ValidateTransaction(transaction Transaction) bool {
+	if bytes.EqualFold(transaction.GetFrom(), transaction.GetTo()) {
+		return false
+	}
+	if transaction.Amount < 0 {
+		return false
+	}
 	pubKey, err := crypto.RecoverPubKey(transaction.Msg(), transaction.GetSign())
 	if err != nil {
 		return false

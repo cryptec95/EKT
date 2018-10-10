@@ -3,9 +3,7 @@ package api
 import (
 	"encoding/json"
 	"github.com/EducationEKT/EKT/core/userevent"
-	"github.com/EducationEKT/EKT/crypto"
 	"github.com/EducationEKT/EKT/db"
-	"github.com/EducationEKT/EKT/dispatcher"
 	"github.com/EducationEKT/EKT/node"
 	"github.com/EducationEKT/xserver/x_err"
 	"github.com/EducationEKT/xserver/x_http/x_req"
@@ -34,13 +32,11 @@ func newTransaction(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
 	if err != nil {
 		return nil, x_err.New(-1, err.Error())
 	}
-	if tx.Amount <= 0 {
-		return nil, x_err.New(-100, "error amount")
+	if !userevent.ValidateTransaction(tx) {
+		return nil, x_err.New(-401, "error signature")
 	}
-	err = dispatcher.NewTransaction(&tx)
-	if err == nil {
-		txId := crypto.Sha3_256(tx.Bytes())
-		db.GetDBInst().Set(txId, tx.Bytes())
+	if node.GetMainChain().NewTransaction(&tx) {
+		db.GetDBInst().Set(tx.TxId(), tx.Bytes())
 	}
 	return x_resp.Return(tx.TransactionId(), err)
 }
