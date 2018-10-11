@@ -28,6 +28,13 @@ func (round Round) GetTime() int64 {
 	return round.time
 }
 
+func (round Round) Distance(previous, my string) int {
+	index1 := round.IndexOf(previous)
+	index2 := round.IndexOf(my)
+	distance := (index2 - index1 + round.Len()) % round.Len()
+	return distance
+}
+
 func (round *Round) UpdateIndex(miner string) {
 	round.CurrentIndex = round.IndexOf(miner)
 }
