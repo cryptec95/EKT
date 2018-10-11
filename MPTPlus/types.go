@@ -1,14 +1,12 @@
 package MPTPlus
 
 import (
+	"bytes"
 	"encoding/hex"
 	"fmt"
-	"sort"
-	"sync"
-
-	"bytes"
 	"github.com/EducationEKT/EKT/core/types"
 	"github.com/EducationEKT/EKT/db"
+	"sort"
 )
 
 /*
@@ -33,7 +31,6 @@ type TrieNode struct {
 }
 
 type MTP struct {
-	Lock sync.RWMutex
 	Root types.HexBytes
 	DB   db.IKVDatabase
 }
@@ -51,7 +48,7 @@ func (mtp MTP) MarshalJSON() ([]byte, error) {
 }
 
 func MTP_Tree(db db.IKVDatabase, root []byte) *MTP {
-	trie := &MTP{DB: db, Root: root, Lock: sync.RWMutex{}}
+	trie := &MTP{DB: db, Root: root}
 	if len(root) != 0 {
 		trie.Root = root
 	} else {

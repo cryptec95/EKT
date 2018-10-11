@@ -28,8 +28,6 @@ func (mtp *MTP) GetValue(key []byte) (value []byte, err error) {
 }
 
 func (mtp *MTP) GetValueByKey(key []byte) (value []byte, err error) {
-	mtp.Lock.RLock()
-	defer mtp.Lock.RUnlock()
 	parentHashes, prefixs, err := mtp.FindParents(key)
 	if err != nil {
 		return nil, err
@@ -88,8 +86,6 @@ func (mtp *MTP) Update(key, value []byte, parentHashes [][]byte, prefixs [][]byt
 *首先搜索到要插入的节点,插入之后向上回溯寻找自己的Parent节点更新,直至root节点
  */
 func (mtp *MTP) MustInsert(key, value []byte) error {
-	mtp.Lock.Lock()
-	defer mtp.Lock.Unlock()
 	// 遍历字典树
 	parentHashes, prefixs, err := mtp.FindParents(key)
 	if err != nil {
