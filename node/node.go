@@ -2,7 +2,7 @@ package node
 
 import (
 	"github.com/EducationEKT/EKT/blockchain"
-	"github.com/EducationEKT/EKT/core/types"
+	"github.com/EducationEKT/EKT/ctxlog"
 )
 
 type Node interface {
@@ -13,8 +13,7 @@ type Node interface {
 	GetHeaderByHeight(chainId, height int64) *blockchain.Header
 	GetBlockByHeight(chainId, height int64) *blockchain.Block
 
-	BlockFromPeer(block blockchain.Block)
+	BlockFromPeer(clog *ctxlog.ContextLog, block *blockchain.Block)
 	VoteFromPeer(vote blockchain.PeerBlockVote)
 	VoteResultFromPeer(votes blockchain.Votes)
-	Heartbeat(heartbeat types.Heartbeat)
 }
