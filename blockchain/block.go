@@ -4,12 +4,12 @@ import (
 	"bytes"
 	"encoding/hex"
 	"encoding/json"
+
 	"github.com/EducationEKT/EKT/contract"
 	"github.com/EducationEKT/EKT/core/types"
 	"github.com/EducationEKT/EKT/core/userevent"
 	"github.com/EducationEKT/EKT/crypto"
 	"github.com/EducationEKT/EKT/db"
-	"time"
 )
 
 const EMPTY_TX = "ca4510738395af1429224dd785675309c344b2b549632e20275c69b15ed1d210"
@@ -76,19 +76,10 @@ func (block Block) GetTxReceipts() []userevent.TransactionReceipt {
 }
 
 func (block Block) GetHeader() *Header {
-	if block.header != nil {
-		return block.header
-	} else {
-		data, err := block.Miner.GetDBValue(hex.EncodeToString(block.Hash))
-		if err != nil {
-			return nil
-		}
-		block.header = FromBytes2Header(data)
-	}
 	return block.header
 }
 
-func (block Block) SetHeader(header *Header) {
+func (block *Block) SetHeader(header *Header) {
 	block.header = header
 }
 
@@ -172,7 +163,6 @@ func (block *Block) CheckSubTransaction(tx userevent.Transaction, subTxs usereve
 }
 
 func (block *Block) Finish() {
-	block.header.Timestamp = time.Now().UnixNano() / 1e6
 	block.header.UpdateMiner()
 	block.header.TxHash = crypto.Sha3_256(block.Transactions.Bytes())
 	db.GetDBInst().Set(block.header.TxHash, block.Transactions.Bytes())
@@ -201,9 +191,9 @@ func CreateGenesisBlock(accounts []types.Account) Block {
 	return block
 }
 
-func CreateBlock(last Header, peer types.Peer) *Block {
+func CreateBlock(last Header, time int64, peer types.Peer) *Block {
 	coinbase, _ := hex.DecodeString(peer.Account)
-	header := NewHeader(last, last.CaculateHash(), coinbase)
+	header := NewHeader(last, time, last.CaculateHash(), coinbase)
 	return &Block{
 		header:              header,
 		Miner:               peer,
