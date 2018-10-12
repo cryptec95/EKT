@@ -171,9 +171,6 @@ func (dbft DbftConsensus) TryPack() bool {
 		}
 	}
 
-	//index := round.IndexOf(hex.EncodeToString(lastHeader.Coinbase))
-	//myIndex := round.IndexOf(conf.EKTConfig.Node.Account)
-	//distance := (myIndex + round.Len() - index) % round.Len()
 	round := dbft.GetRound()
 	distance := round.Distance(hex.EncodeToString(lastHeader.Coinbase), conf.EKTConfig.Node.Account)
 	t := int64(distance) * int64(blockchain.BackboneBlockInterval) / 1e6
@@ -194,22 +191,18 @@ func (dbft DbftConsensus) TryPack() bool {
 
 func (dbft DbftConsensus) orderliness(packTime int64) {
 	dbft.once.Do(func() {
-		log.Debug("====!importent======%d", packTime)
-		roundTime := time.Duration(dbft.GetRound().Len()) * blockchain.BackboneBlockInterval
+		roundTime := int64(dbft.GetRound().Len()) * int64(blockchain.BackboneBlockInterval) / 1e6
 		gap := 100 * time.Millisecond
 		for {
 			now := time.Now().UnixNano() / 1e6
-			if now-packTime > int64(roundTime/1e6) {
-				packTime += int64(roundTime / 1e6)
+			if now-packTime > roundTime {
+				packTime += roundTime
 			}
 			if int64(math.Abs(float64(now-packTime))) < int64(gap/time.Millisecond) {
-				log.Debug("=======!pack signal==%d===%d===%d", now, packTime, int64(gap/time.Millisecond))
 				go dbft.Pack(packTime)
-				packTime += int64(roundTime / 1e6)
-				time.Sleep(roundTime)
-			} else {
-				time.Sleep(gap)
+				packTime += roundTime
 			}
+			time.Sleep(blockchain.BackboneBlockInterval)
 		}
 	})
 }
