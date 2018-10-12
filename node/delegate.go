@@ -2,14 +2,16 @@ package node
 
 import (
 	"encoding/hex"
+	"time"
+
 	"github.com/EducationEKT/EKT/blockchain"
 	"github.com/EducationEKT/EKT/conf"
 	"github.com/EducationEKT/EKT/consensus"
-	"github.com/EducationEKT/EKT/core/types"
 	"github.com/EducationEKT/EKT/ctxlog"
 	"github.com/EducationEKT/EKT/db"
 	"github.com/EducationEKT/EKT/ektclient"
 	"github.com/EducationEKT/EKT/encapdb"
+	"github.com/EducationEKT/EKT/log"
 	"github.com/EducationEKT/EKT/param"
 )
 
@@ -18,6 +20,7 @@ type DelegateNode struct {
 	config     conf.EKTConf
 	blockchain *blockchain.BlockChain
 	dbft       *consensus.DbftConsensus
+	seated     bool
 	client     ektclient.IClient
 }
 
@@ -25,6 +28,7 @@ func NewDelegateNode(conf conf.EKTConf) *DelegateNode {
 	node := &DelegateNode{
 		db:         db.GetDBInst(),
 		config:     conf,
+		seated:     false,
 		blockchain: blockchain.NewBlockChain(1),
 		client:     ektclient.NewClient(param.MainChainDelegateNode),
 	}
@@ -34,7 +38,45 @@ func NewDelegateNode(conf conf.EKTConf) *DelegateNode {
 
 func (delegate DelegateNode) StartNode() {
 	delegate.RecoverFromDB()
-	delegate.dbft.Run()
+	go delegate.sync()
+}
+
+func (delegate DelegateNode) sync() {
+	lastHeight := delegate.dbft.Blockchain.GetLastHeight()
+	fail, failTime := false, 0
+	for {
+		if fail {
+			time.Sleep(time.Second)
+		}
+		height := delegate.dbft.Blockchain.GetLastHeight()
+		if height == lastHeight {
+			if fail && failTime >= 3 {
+				if !delegate.seated {
+					go delegate.tryPack()
+				}
+			}
+			log.Debug("Height has not change for an interval, synchronizing block.")
+			if delegate.dbft.SyncHeight(lastHeight + 1) {
+				log.Debug("Synchronized block at lastHeight %d.", lastHeight+1)
+				fail, failTime = false, 0
+				lastHeight = delegate.dbft.Blockchain.GetLastHeight()
+			} else {
+				fail, failTime = true, failTime+1
+				log.Debug("Synchronize block at lastHeight %d failed.", lastHeight+1)
+				time.Sleep(blockchain.BackboneBlockInterval)
+			}
+		} else {
+			lastHeight = height
+		}
+	}
+}
+
+func (delegate DelegateNode) tryPack() {
+	if !delegate.seated {
+		if delegate.dbft.TryPack() {
+			delegate.seated = true
+		}
+	}
 }
 
 func (delegate DelegateNode) GetBlockChain() *blockchain.BlockChain {
@@ -45,17 +87,18 @@ func (delegate DelegateNode) RecoverFromDB() {
 	delegate.dbft.RecoverFromDB()
 }
 
-func (delegate DelegateNode) Heartbeat(heartbeat types.Heartbeat) {
-	if heartbeat.Validate() {
-		delegate.dbft.ReceiveHeartbeat(heartbeat)
+func (delegate DelegateNode) BlockFromPeer(clog *ctxlog.ContextLog, block *blockchain.Block) {
+	clog.Log("blockHash", hex.EncodeToString(block.Hash))
+	delegate.dbft.GetBlockHeader(block)
+	if block.GetHeader() == nil {
+		clog.Log("Invalid header", true)
+		return
 	}
-}
-
-func (delegate DelegateNode) BlockFromPeer(block blockchain.Block) {
-	ctxLog := ctxlog.NewContextLog("blockFromPeer")
-	defer ctxLog.Finish()
-	ctxLog.Log("blockHash", hex.EncodeToString(block.Hash))
-	delegate.dbft.BlockFromPeer(ctxLog, block)
+	if block.GetHeader().Height != delegate.blockchain.LastHeader().Height+1 {
+		clog.Log("Invalid height", true)
+		return
+	}
+	delegate.dbft.BlockFromPeer(clog, block)
 }
 
 func (delegate DelegateNode) VoteFromPeer(vote blockchain.PeerBlockVote) {
