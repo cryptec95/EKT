@@ -3,7 +3,6 @@ package blockchain
 import (
 	"encoding/hex"
 	"encoding/json"
-	"time"
 
 	"github.com/EducationEKT/EKT/MPTPlus"
 	"github.com/EducationEKT/EKT/core/types"
@@ -75,10 +74,10 @@ func GenesisHeader(accounts []types.Account) *Header {
 	return header
 }
 
-func NewHeader(last Header, parentHash types.HexBytes, coinbase types.HexBytes) *Header {
-	block := &Header{
+func NewHeader(last Header, packTime int64, parentHash types.HexBytes, coinbase types.HexBytes) *Header {
+	header := &Header{
 		Height:       last.Height + 1,
-		Timestamp:    time.Now().UnixNano() / 1e6,
+		Timestamp:    packTime,
 		TotalFee:     0,
 		PreviousHash: parentHash,
 		Coinbase:     coinbase,
@@ -87,7 +86,7 @@ func NewHeader(last Header, parentHash types.HexBytes, coinbase types.HexBytes) 
 		Version:      HEADER_VERSION_MIXED,
 	}
 
-	return block
+	return header
 }
 
 func (header *Header) NewSubTransaction(txs userevent.SubTransactions) bool {
