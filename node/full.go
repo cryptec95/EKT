@@ -1,14 +1,15 @@
 package node
 
 import (
+	"time"
+
 	"github.com/EducationEKT/EKT/blockchain"
 	"github.com/EducationEKT/EKT/conf"
 	"github.com/EducationEKT/EKT/consensus"
-	"github.com/EducationEKT/EKT/core/types"
+	"github.com/EducationEKT/EKT/ctxlog"
 	"github.com/EducationEKT/EKT/ektclient"
 	"github.com/EducationEKT/EKT/encapdb"
 	"github.com/EducationEKT/EKT/param"
-	"time"
 )
 
 type FullNode struct {
@@ -37,14 +38,11 @@ func (node FullNode) GetBlockChain() *blockchain.BlockChain {
 	return node.blockchain
 }
 
-func (node FullNode) Heartbeat(heartbeat types.Heartbeat) {
-}
-
 func (node FullNode) recoverFromDB() {
 	node.dbft.RecoverFromDB()
 }
 
-func (node FullNode) BlockFromPeer(block blockchain.Block) {
+func (node FullNode) BlockFromPeer(clog *ctxlog.ContextLog, block *blockchain.Block) {
 	return
 }
 
