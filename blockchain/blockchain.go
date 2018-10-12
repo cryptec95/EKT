@@ -3,7 +3,6 @@ package blockchain
 import (
 	"bytes"
 	"github.com/EducationEKT/EKT/ctxlog"
-	"sync"
 	"time"
 
 	"github.com/EducationEKT/EKT/core/userevent"
@@ -17,7 +16,6 @@ const (
 
 type BlockChain struct {
 	ChainId       int64
-	locker        *sync.RWMutex
 	header        Header
 	currentHeight int64
 	Pool          *pool.TxPool
@@ -26,37 +24,31 @@ type BlockChain struct {
 func NewBlockChain(chainId int64) *BlockChain {
 	return &BlockChain{
 		ChainId: chainId,
-		locker:  &sync.RWMutex{},
 		Pool:    pool.NewTxPool(),
 	}
 }
 
 func (chain *BlockChain) LastHeader() Header {
-	chain.locker.RLock()
-	defer chain.locker.RUnlock()
 	return chain.header
 }
 
 func (chain *BlockChain) SetLastHeader(header Header) {
-	chain.locker.Lock()
-	defer chain.locker.Unlock()
 	chain.header = header
 	chain.currentHeight = header.Height
 }
 
 func (chain *BlockChain) GetLastHeight() int64 {
-	chain.locker.RLock()
-	defer chain.locker.RUnlock()
 	return chain.currentHeight
 }
 
-func (chain *BlockChain) PackTime() time.Duration {
-	return BackboneBlockInterval - 500*time.Millisecond
+func (chain *BlockChain) PackTime(block *Block) time.Duration {
+	return time.Duration(block.GetHeader().Timestamp+2500-time.Now().UnixNano()/1e6) * 1e6
 }
 
-func (chain *BlockChain) PackTransaction(ctxlog *ctxlog.ContextLog, block *Block) {
+func (chain *BlockChain) PackTransaction(clog *ctxlog.ContextLog, block *Block) {
 	defer block.Finish()
-	eventTimeout := time.After(chain.PackTime())
+	t := chain.PackTime(block)
+	eventTimeout := time.After(t)
 
 	start := time.Now().UnixNano()
 	started := false
@@ -104,12 +96,12 @@ func (chain *BlockChain) NewTransaction(tx *userevent.Transaction) bool {
 }
 
 func (chain *BlockChain) ValidateBlock(next Block) bool {
-	newBlock := CreateBlock(chain.LastHeader(), next.Miner)
+	lastHeader := chain.LastHeader()
+	newBlock := CreateBlock(lastHeader, next.GetHeader().Timestamp, next.Miner)
 	for _, tx := range next.GetTransactions() {
 		newBlock.NewTransaction(tx)
 	}
 	newBlock.Finish()
-	newBlock.header.Timestamp = next.GetHeader().Timestamp
 	if !bytes.EqualFold(newBlock.GetHeader().CaculateHash(), next.Hash) {
 		return false
 	}
