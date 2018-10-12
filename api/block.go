@@ -4,7 +4,9 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+
 	"github.com/EducationEKT/EKT/blockchain"
+	"github.com/EducationEKT/EKT/ctxlog"
 	"github.com/EducationEKT/EKT/encapdb"
 	"github.com/EducationEKT/EKT/node"
 	"github.com/EducationEKT/xserver/x_err"
@@ -18,7 +20,7 @@ func init() {
 	x_router.Get("/block/api/getHeaderByHeight", getHeaderByHeight)
 	x_router.Get("/block/api/getHeaderByHash", getHeaderByHash)
 	x_router.Get("/block/api/getBlockByHeight", getBlockByHeight)
-	x_router.Post("/block/api/blockFromPeer", blockFromPeer)
+	x_router.Post("/block/api/blockFromPeer", broadcast, blockFromPeer)
 }
 
 func getBlockByHeight(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
@@ -56,12 +58,11 @@ func getHeaderByHeight(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
 }
 
 func blockFromPeer(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
+	cLog := ctxlog.NewContextLog("BlockFromPeer")
+	defer cLog.Finish()
 	var block blockchain.Block
 	json.Unmarshal(req.Body, &block)
-	lastHeight := node.GetMainChain().GetLastHeight()
-	if lastHeight+1 != block.GetHeader().Height {
-		return x_resp.Fail(-1, "error invalid height", nil), nil
-	}
-	node.BlockFromPeer(block)
+	cLog.Log("body", string(req.Body))
+	node.BlockFromPeer(cLog, &block)
 	return x_resp.Return("recieved", nil)
 }
