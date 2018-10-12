@@ -1,11 +1,8 @@
 package api
 
 import (
-	"encoding/json"
 	"fmt"
 	"github.com/EducationEKT/EKT/conf"
-	"github.com/EducationEKT/EKT/core/types"
-	"github.com/EducationEKT/EKT/node"
 	"github.com/EducationEKT/EKT/param"
 	"github.com/EducationEKT/EKT/util"
 
@@ -18,22 +15,11 @@ import (
 func init() {
 	x_router.All("/peer/api/ping", ping)
 	x_router.Post("/peer/api/peers", delegatePeers)
-	x_router.Post("/peer/api/heartbeat", heartbeat)
 }
 
 func delegatePeers(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
 	peers := param.MainChainDelegateNode
 	return x_resp.Success(peers), x_err.NewXErr(nil)
-}
-
-func heartbeat(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
-	var heartbeat types.Heartbeat
-	err := json.Unmarshal(req.Body, &heartbeat)
-	if err != nil {
-		return x_resp.Return(nil, err)
-	}
-	node.GetInst().Heartbeat(heartbeat)
-	return x_resp.Return(nil, nil)
 }
 
 func ping(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {

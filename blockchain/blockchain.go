@@ -3,7 +3,6 @@ package blockchain
 import (
 	"bytes"
 	"github.com/EducationEKT/EKT/ctxlog"
-	"sync"
 	"time"
 
 	"github.com/EducationEKT/EKT/core/userevent"
@@ -17,50 +16,39 @@ const (
 
 type BlockChain struct {
 	ChainId       int64
-	currentLocker sync.RWMutex
 	header        Header
 	currentHeight int64
-	Locker        sync.RWMutex
 	Pool          *pool.TxPool
-	PackLock      sync.RWMutex
 }
 
 func NewBlockChain(chainId int64) *BlockChain {
 	return &BlockChain{
-		ChainId:       chainId,
-		Locker:        sync.RWMutex{},
-		currentLocker: sync.RWMutex{},
-		Pool:          pool.NewTxPool(),
-		PackLock:      sync.RWMutex{},
+		ChainId: chainId,
+		Pool:    pool.NewTxPool(),
 	}
 }
 
 func (chain *BlockChain) LastHeader() Header {
-	chain.currentLocker.RLock()
-	defer chain.currentLocker.RUnlock()
 	return chain.header
 }
 
 func (chain *BlockChain) SetLastHeader(header Header) {
-	chain.currentLocker.Lock()
-	defer chain.currentLocker.Unlock()
 	chain.header = header
 	chain.currentHeight = header.Height
 }
 
 func (chain *BlockChain) GetLastHeight() int64 {
-	chain.currentLocker.RLock()
-	defer chain.currentLocker.RUnlock()
 	return chain.currentHeight
 }
 
-func (chain *BlockChain) PackTime() time.Duration {
-	return BackboneBlockInterval - 500*time.Millisecond
+func (chain *BlockChain) PackTime(block *Block) time.Duration {
+	return time.Duration(block.GetHeader().Timestamp+2500-time.Now().UnixNano()/1e6) * 1e6
 }
 
-func (chain *BlockChain) PackTransaction(ctxlog *ctxlog.ContextLog, block *Block) {
+func (chain *BlockChain) PackTransaction(clog *ctxlog.ContextLog, block *Block) {
 	defer block.Finish()
-	eventTimeout := time.After(chain.PackTime())
+	t := chain.PackTime(block)
+	eventTimeout := time.After(t)
 
 	start := time.Now().UnixNano()
 	started := false
@@ -108,13 +96,13 @@ func (chain *BlockChain) NewTransaction(tx *userevent.Transaction) bool {
 }
 
 func (chain *BlockChain) ValidateBlock(next Block) bool {
-	newBlock := CreateBlock(chain.LastHeader(), next.Miner)
-	newBlock.GetHeader().Timestamp = next.GetHeader().Timestamp
+	lastHeader := chain.LastHeader()
+	newBlock := CreateBlock(lastHeader, next.GetHeader().Timestamp, next.Miner)
 	for _, tx := range next.GetTransactions() {
 		newBlock.NewTransaction(tx)
 	}
 	newBlock.Finish()
-	if !bytes.EqualFold(newBlock.Hash, next.Hash) {
+	if !bytes.EqualFold(newBlock.GetHeader().CaculateHash(), next.Hash) {
 		return false
 	}
 	return true

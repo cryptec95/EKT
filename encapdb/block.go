@@ -15,6 +15,7 @@ func GetBlockByHeight(chainId, height int64) *blockchain.Block {
 	}
 	return blockchain.GetBlockFromBytes(data)
 }
+
 func SetBlockByHeight(chainId, height int64, block blockchain.Block) {
 	key := schema.GetBlockByHeightKey(chainId, height)
 	db.GetDBInst().Set(key, block.Bytes())

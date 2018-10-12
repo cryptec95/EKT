@@ -7,7 +7,6 @@ import (
 	"strconv"
 
 	"github.com/EducationEKT/EKT/blockchain"
-	"github.com/EducationEKT/EKT/conf"
 	"github.com/EducationEKT/EKT/core/types"
 	"github.com/EducationEKT/EKT/crypto"
 	"github.com/EducationEKT/EKT/util"
@@ -29,7 +28,6 @@ type IClient interface {
 	BroadcastBlock(block blockchain.Block)
 	SendVote(vote blockchain.PeerBlockVote)
 	SendVoteResult(votes blockchain.Votes)
-	SendHeartbeat()
 }
 
 type Client struct {
@@ -61,7 +59,9 @@ func (client Client) GetBlockByHeight(height int64) *blockchain.Block {
 		if err != nil {
 			continue
 		}
-		if block := blockchain.GetBlockFromBytes(body); block != nil {
+		if block := blockchain.GetBlockFromBytes(body); block == nil || len(block.Hash) == 0 {
+			continue
+		} else {
 			return block
 		}
 	}
@@ -139,16 +139,6 @@ func (client Client) SendVoteResult(votes blockchain.Votes) {
 	data := votes.Bytes()
 	for _, peer := range client.peers {
 		url := util.StringJoint("http://", peer.Address, ":", strconv.Itoa(int(peer.Port)), "/vote/api/voteResult")
-		go util.HttpPost(url, data)
-	}
-}
-
-func (client Client) SendHeartbeat() {
-	heartbeat := types.NewHeartbeat(conf.EKTConfig.Node)
-	heartbeat.Sign(conf.EKTConfig.GetPrivateKey())
-	data, _ := json.Marshal(heartbeat)
-	for _, peer := range client.peers {
-		url := util.StringJoint("http://", peer.Address, ":", strconv.Itoa(int(peer.Port)), "/peer/api/heartbeat")
 		go util.HttpPost(url, data)
 	}
 }

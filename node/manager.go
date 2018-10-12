@@ -2,12 +2,14 @@ package node
 
 import (
 	"encoding/hex"
+	"strings"
+
 	"github.com/EducationEKT/EKT/blockchain"
 	"github.com/EducationEKT/EKT/conf"
 	"github.com/EducationEKT/EKT/core/types"
 	"github.com/EducationEKT/EKT/crypto"
+	"github.com/EducationEKT/EKT/ctxlog"
 	"github.com/EducationEKT/EKT/param"
-	"strings"
 )
 
 const (
@@ -49,10 +51,6 @@ func checkEnv() string {
 	return NODE_ENV_FULL_SYNC
 }
 
-func GetInst() Node {
-	return fullNode
-}
-
 func GetMainChain() *blockchain.BlockChain {
 	return fullNode.GetBlockChain()
 }
@@ -64,8 +62,8 @@ func SuggestFee() int64 {
 /*
 	for delegate node
 */
-func BlockFromPeer(block blockchain.Block) {
-	fullNode.BlockFromPeer(block)
+func BlockFromPeer(clog *ctxlog.ContextLog, block *blockchain.Block) {
+	fullNode.BlockFromPeer(clog, block)
 }
 
 func VoteFromPeer(vote blockchain.PeerBlockVote) {

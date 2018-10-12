@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/hex"
 	"encoding/json"
+
 	"github.com/EducationEKT/EKT/contract"
 	"github.com/EducationEKT/EKT/core/types"
 	"github.com/EducationEKT/EKT/core/userevent"
@@ -75,16 +76,11 @@ func (block Block) GetTxReceipts() []userevent.TransactionReceipt {
 }
 
 func (block Block) GetHeader() *Header {
-	if block.header != nil {
-		return block.header
-	} else {
-		data, err := block.Miner.GetDBValue(hex.EncodeToString(block.Hash))
-		if err != nil {
-			return nil
-		}
-		block.header = FromBytes2Header(data)
-	}
 	return block.header
+}
+
+func (block *Block) SetHeader(header *Header) {
+	block.header = header
 }
 
 func (block *Block) NewTransaction(tx userevent.Transaction) *userevent.TransactionReceipt {
@@ -95,7 +91,7 @@ func (block *Block) NewTransaction(tx userevent.Transaction) *userevent.Transact
 		return &receipt
 	}
 	switch len(tx.To) {
-	case types.AddressLength:
+	case types.AccountAddressLength:
 		txs := make(userevent.SubTransactions, 0)
 		subTx := userevent.NewSubTransaction(tx.TxId(), tx.From, tx.To, tx.Amount, tx.Data, tx.TokenAddress)
 		txs = append(txs, *subTx)
@@ -106,19 +102,12 @@ func (block *Block) NewTransaction(tx userevent.Transaction) *userevent.Transact
 		block.TransactionReceipts = append(block.TransactionReceipts, receipt)
 		return &receipt
 	case types.ContractAddressLength:
-		to, err := block.GetHeader().GetAccount(tx.To[:32])
-		contractAddress := tx.To[32:]
-		if err == nil && to != nil {
-			if _, exist := to.Contracts[hex.EncodeToString(contractAddress)]; !exist {
-				if !contract.InitContractAccount(tx, to) {
-					receipt := userevent.NewTransactionReceipt(tx, false, userevent.FailType_INIT_CONTRACT_ACCOUNT_FAIL)
-					block.Transactions = append(block.Transactions, tx)
-					block.TransactionReceipts = append(block.TransactionReceipts, receipt)
-					return &receipt
-				}
-			}
-		} else {
-			to = types.NewAccount(tx.To[:32])
+		toAccountAddress, toContractAddress := tx.To[:32], tx.To[32:]
+		to, err := block.GetHeader().GetAccount(toAccountAddress)
+		if err != nil || to == nil {
+			to = types.NewAccount(toAccountAddress)
+		}
+		if _, exist := to.Contracts[hex.EncodeToString(toContractAddress)]; !exist {
 			if !contract.InitContractAccount(tx, to) {
 				receipt := userevent.NewTransactionReceipt(tx, false, userevent.FailType_INIT_CONTRACT_ACCOUNT_FAIL)
 				block.Transactions = append(block.Transactions, tx)
@@ -126,32 +115,33 @@ func (block *Block) NewTransaction(tx userevent.Transaction) *userevent.Transact
 				return &receipt
 			}
 		}
-		if _, exist := to.Contracts[hex.EncodeToString(contractAddress)]; !exist {
-			receipt := userevent.NewTransactionReceipt(tx, false, userevent.FailType_INVALID_CONTRACT_ADDRESS)
+		receipt, data := contract.Run(tx, to)
+		if !receipt.Success {
+			_receipt := userevent.NewTransactionReceipt(tx, false, userevent.FailType_CONTRACT_ERROR)
 			block.Transactions = append(block.Transactions, tx)
-			block.TransactionReceipts = append(block.TransactionReceipts, receipt)
-			return &receipt
+			block.TransactionReceipts = append(block.TransactionReceipts, _receipt)
+			return receipt
 		} else {
-			receipt, data := contract.Run(tx, to)
-			if !block.CheckSubTransaction(tx, receipt.SubTransactions) {
-				receipt = userevent.ContractRefuseTx(tx)
-			}
-			if receipt.Success {
-				contractAccount := to.Contracts[hex.EncodeToString(contractAddress)]
-				contractAccount.ContractData = data
-				to.Contracts[hex.EncodeToString(contractAddress)] = contractAccount
-				block.GetHeader().StatTree.MustInsert(to.Address, to.ToBytes())
-			}
-			txs := make(userevent.SubTransactions, 0)
-			subTx := userevent.NewSubTransaction(tx.TxId(), tx.From, tx.To, tx.Amount, tx.Data, tx.TokenAddress)
-			txs = append(txs, *subTx)
-			txs = append(txs, receipt.SubTransactions...)
-			receipt.Success = block.GetHeader().NewSubTransaction(txs)
-			receipt.SubTransactions = txs
+			contractAccount := to.Contracts[hex.EncodeToString(toContractAddress)]
+			contractAccount.ContractData = data
+			to.Contracts[hex.EncodeToString(toContractAddress)] = contractAccount
+			block.GetHeader().StatTree.MustInsert(toAccountAddress, to.ToBytes())
+		}
+		if !block.CheckSubTransaction(tx, receipt.SubTransactions) {
+			_receipt := userevent.NewTransactionReceipt(tx, false, userevent.FailType_CONTRACT_ERROR)
 			block.Transactions = append(block.Transactions, tx)
-			block.TransactionReceipts = append(block.TransactionReceipts, *receipt)
+			block.TransactionReceipts = append(block.TransactionReceipts, _receipt)
 			return receipt
 		}
+		txs := make(userevent.SubTransactions, 0)
+		subTx := userevent.NewSubTransaction(tx.TxId(), tx.From, tx.To, tx.Amount, tx.Data, tx.TokenAddress)
+		txs = append(txs, *subTx)
+		txs = append(txs, receipt.SubTransactions...)
+		receipt.Success = block.GetHeader().NewSubTransaction(txs)
+		receipt.SubTransactions = txs
+		block.Transactions = append(block.Transactions, tx)
+		block.TransactionReceipts = append(block.TransactionReceipts, *receipt)
+		return receipt
 	default:
 		receipt := userevent.NewTransactionReceipt(tx, false, userevent.FailType_INVALID_ADDRESS)
 		block.Transactions = append(block.Transactions, tx)
@@ -179,15 +169,7 @@ func (block *Block) Finish() {
 	block.header.ReceiptHash = crypto.Sha3_256(block.TransactionReceipts.Bytes())
 	db.GetDBInst().Set(block.header.ReceiptHash, block.TransactionReceipts.Bytes())
 	block.Hash = block.header.CaculateHash()
-}
-
-func (block Block) ValidateNextBlock(next Block) bool {
-	newBlock := CreateBlock(*(block.GetHeader()), next.Miner)
-	for _, tx := range next.GetTransactions() {
-		newBlock.NewTransaction(tx)
-	}
-	newBlock.Finish()
-	return bytes.EqualFold(newBlock.Hash, next.Hash)
+	db.GetDBInst().Set(block.Hash, block.header.Bytes())
 }
 
 func (block *Block) Sign(privKey []byte) error {
@@ -209,9 +191,9 @@ func CreateGenesisBlock(accounts []types.Account) Block {
 	return block
 }
 
-func CreateBlock(last Header, peer types.Peer) *Block {
+func CreateBlock(last Header, time int64, peer types.Peer) *Block {
 	coinbase, _ := hex.DecodeString(peer.Account)
-	header := NewHeader(last, last.CaculateHash(), coinbase)
+	header := NewHeader(last, time, last.CaculateHash(), coinbase)
 	return &Block{
 		header:              header,
 		Miner:               peer,
