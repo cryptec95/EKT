@@ -201,8 +201,10 @@ func (dbft DbftConsensus) orderliness(packTime int64) {
 			if int64(math.Abs(float64(now-packTime))) < int64(gap/time.Millisecond) {
 				go dbft.Pack(packTime)
 				packTime += roundTime
+				time.Sleep(blockchain.BackboneBlockInterval)
+			} else {
+				time.Sleep(gap)
 			}
-			time.Sleep(blockchain.BackboneBlockInterval)
 		}
 	})
 }
