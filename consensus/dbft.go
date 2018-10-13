@@ -50,8 +50,10 @@ func (dbft DbftConsensus) BlockFromPeer(clog *ctxlog.ContextLog, block *blockcha
 
 	// 判断此区块是否是一个interval之前打包的，如果是则放弃vote
 	// unit： ms    单位：ms
-	blockLatencyTime := int64(time.Now().UnixNano()/1e6 - header.Timestamp) // 从节点打包到当前节点的延迟，单位ms
-	if blockLatencyTime > int64(blockchain.BackboneBlockInterval/1e6)*4/3 {
+	now := time.Now().UnixNano() / 1e6
+	ttl := 1 * time.Second
+	packEndTime := header.Timestamp + int64(blockchain.BackboneBlockInterval/1e6)
+	if int64(math.Abs(float64(now-packEndTime))) > int64(ttl/1e6) {
 		clog.Log("More than an interval", true)
 		return
 	}
@@ -242,10 +244,6 @@ func (dbft DbftConsensus) Pack(packTime int64) {
 	lastHeader := dbft.Blockchain.LastHeader()
 	block := blockchain.CreateBlock(lastHeader, packTime, conf.EKTConfig.Node)
 	dbft.Blockchain.PackTransaction(clog, block)
-	clog.Log("======b", time.Now().UnixNano()/1e6)
-	clog.Log("======c", block.GetHeader().Timestamp)
-	clog.Log("hash", hex.EncodeToString(block.Hash))
-	clog.Log("height", block.GetHeader().Height)
 
 	// 增加打包信息
 	dbft.BlockManager.Insert(block)
@@ -302,8 +300,7 @@ func (dbft DbftConsensus) SyncHeight(height int64) bool {
 		log.Info("Get block by height failed")
 		return false
 	}
-	dbft.GetBlockHeader(block)
-	if block.GetHeader() == nil || block.GetHeader().Height != height {
+	if block.GetHeader().Height != height {
 		log.Info("Get header by hash failed, hash = %s", hex.EncodeToString(block.Hash))
 		return false
 	} else {
@@ -394,12 +391,4 @@ func (dbft DbftConsensus) ValidateVotes(votes blockchain.Votes) bool {
 		return false
 	}
 	return true
-}
-
-func (dbft DbftConsensus) GetBlockHeader(block *blockchain.Block) {
-	header := block.GetHeader()
-	if header == nil {
-		header = dbft.Client.GetHeaderByHash(block.Hash)
-		block.SetHeader(header)
-	}
 }
