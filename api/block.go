@@ -62,7 +62,6 @@ func blockFromPeer(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
 	defer cLog.Finish()
 	var block blockchain.Block
 	json.Unmarshal(req.Body, &block)
-	cLog.Log("body", string(req.Body))
 	node.BlockFromPeer(cLog, &block)
 	return x_resp.Return("recieved", nil)
 }
