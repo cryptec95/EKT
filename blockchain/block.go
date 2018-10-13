@@ -22,7 +22,7 @@ type IBlock interface {
 }
 
 type Block struct {
-	header              *Header                `json:"-"`
+	Header              *Header                `json:"header"`
 	Hash                types.HexBytes         `json:"hash"`
 	Signature           types.HexBytes         `json:"signature"`
 	Miner               types.Peer             `json:"miner"`
@@ -76,11 +76,11 @@ func (block Block) GetTxReceipts() []userevent.TransactionReceipt {
 }
 
 func (block Block) GetHeader() *Header {
-	return block.header
+	return block.Header
 }
 
 func (block *Block) SetHeader(header *Header) {
-	block.header = header
+	block.Header = header
 }
 
 func (block *Block) NewTransaction(tx userevent.Transaction) *userevent.TransactionReceipt {
@@ -163,13 +163,13 @@ func (block *Block) CheckSubTransaction(tx userevent.Transaction, subTxs usereve
 }
 
 func (block *Block) Finish() {
-	block.header.UpdateMiner()
-	block.header.TxHash = crypto.Sha3_256(block.Transactions.Bytes())
-	db.GetDBInst().Set(block.header.TxHash, block.Transactions.Bytes())
-	block.header.ReceiptHash = crypto.Sha3_256(block.TransactionReceipts.Bytes())
-	db.GetDBInst().Set(block.header.ReceiptHash, block.TransactionReceipts.Bytes())
-	block.Hash = block.header.CaculateHash()
-	db.GetDBInst().Set(block.Hash, block.header.Bytes())
+	block.Header.UpdateMiner()
+	block.Header.TxHash = crypto.Sha3_256(block.Transactions.Bytes())
+	db.GetDBInst().Set(block.Header.TxHash, block.Transactions.Bytes())
+	block.Header.ReceiptHash = crypto.Sha3_256(block.TransactionReceipts.Bytes())
+	db.GetDBInst().Set(block.Header.ReceiptHash, block.TransactionReceipts.Bytes())
+	block.Hash = block.Header.CaculateHash()
+	db.GetDBInst().Set(block.Hash, block.Header.Bytes())
 }
 
 func (block *Block) Sign(privKey []byte) error {
@@ -186,7 +186,7 @@ func (block Block) Bytes() []byte {
 func CreateGenesisBlock(accounts []types.Account) Block {
 	header := GenesisHeader(accounts)
 	block := Block{
-		header: header,
+		Header: header,
 	}
 	return block
 }
@@ -195,7 +195,7 @@ func CreateBlock(last Header, time int64, peer types.Peer) *Block {
 	coinbase, _ := hex.DecodeString(peer.Account)
 	header := NewHeader(last, time, last.CaculateHash(), coinbase)
 	return &Block{
-		header:              header,
+		Header:              header,
 		Miner:               peer,
 		Transactions:        make([]userevent.Transaction, 0),
 		TransactionReceipts: make([]userevent.TransactionReceipt, 0),

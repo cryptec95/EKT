@@ -89,11 +89,6 @@ func (delegate DelegateNode) RecoverFromDB() {
 
 func (delegate DelegateNode) BlockFromPeer(clog *ctxlog.ContextLog, block *blockchain.Block) {
 	clog.Log("blockHash", hex.EncodeToString(block.Hash))
-	delegate.dbft.GetBlockHeader(block)
-	if block.GetHeader() == nil {
-		clog.Log("Invalid header", true)
-		return
-	}
 	if block.GetHeader().Height != delegate.blockchain.LastHeader().Height+1 {
 		clog.Log("Invalid height", true)
 		return
