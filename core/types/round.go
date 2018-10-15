@@ -1,31 +1,13 @@
 package types
 
-import "sync"
-
 type Round struct {
-	CurrentIndex int          `json:"currentIndex"` // default -1
-	Peers        []Peer       `json:"peers"`
-	time         int64        `json:"-"`
-	Locker       sync.RWMutex `json:"-"`
+	Peers []Peer `json:"peers"`
 }
 
-func NewRound(peers Peers, index int, time int64) *Round {
+func NewRound(peers Peers) *Round {
 	return &Round{
-		CurrentIndex: index,
-		Peers:        peers,
-		time:         time,
-		Locker:       sync.RWMutex{},
+		Peers: peers,
 	}
-}
-
-func (round *Round) SetTime(time int64) {
-	round.Locker.Lock()
-	round.time = time
-	round.Locker.Unlock()
-}
-
-func (round Round) GetTime() int64 {
-	return round.time
 }
 
 func (round Round) Distance(previous, my string) int {
@@ -33,10 +15,6 @@ func (round Round) Distance(previous, my string) int {
 	index2 := round.IndexOf(my)
 	distance := (index2 - index1 + round.Len()) % round.Len()
 	return distance
-}
-
-func (round *Round) UpdateIndex(miner string) {
-	round.CurrentIndex = round.IndexOf(miner)
 }
 
 func (round Round) IndexOf(miner string) int {
@@ -53,11 +31,7 @@ func (round Round) Len() int {
 }
 
 func (round Round) Clone() Round {
-	round.Locker.RLock()
-	defer round.Locker.RUnlock()
 	return Round{
-		CurrentIndex: round.CurrentIndex,
-		Peers:        round.Peers,
-		time:         round.time,
+		Peers: round.Peers,
 	}
 }
