@@ -3,6 +3,7 @@ package xlog
 import (
 	"fmt"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -30,6 +31,8 @@ func (w *Writer) checkLogFile() error {
 		}
 		w.fp = fp
 		os.Remove(w.path)
+		names := strings.Split(path, "/")
+		path = names[len(names)-1]
 		os.Symlink(path, w.path)
 	}
 
@@ -41,6 +44,8 @@ func (w *Writer) checkLogFile() error {
 		}
 		w.fp = fp
 		os.Remove(w.path)
+		names := strings.Split(path, "/")
+		path = names[len(names)-1]
 		os.Symlink(path, w.path)
 	}
 
