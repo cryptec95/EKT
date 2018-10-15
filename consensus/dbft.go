@@ -28,7 +28,7 @@ type DbftConsensus struct {
 
 func NewDbftConsensus(Blockchain *blockchain.BlockChain, client ektclient.IClient) *DbftConsensus {
 	return &DbftConsensus{
-		Round:        types.NewRound(param.MainChainDelegateNode, -1, 0),
+		Round:        types.NewRound(param.MainChainDelegateNode),
 		Blockchain:   Blockchain,
 		BlockManager: blockchain.NewBlockManager(),
 		VoteResults:  blockchain.NewVoteResults(),
@@ -197,7 +197,10 @@ func (dbft DbftConsensus) orderliness(packTime int64) {
 		gap := 100 * time.Millisecond
 		for {
 			now := time.Now().UnixNano() / 1e6
-			if (now-packTime)%roundTime < int64(gap/time.Millisecond) {
+			for packTime+roundTime < now+int64(gap/time.Millisecond) {
+				packTime += roundTime
+			}
+			if int64(math.Abs(float64(now-packTime))) < int64(gap/time.Millisecond) {
 				go dbft.Pack(packTime)
 				time.Sleep(blockchain.BackboneBlockInterval)
 			} else {
@@ -238,6 +241,7 @@ func (dbft DbftConsensus) Pack(packTime int64) {
 	defer clog.Finish()
 
 	lastHeader := dbft.Blockchain.LastHeader()
+	log.Debug("Packing block at height %d, current timestamp %d", lastHeader.Height, time.Now().UnixNano())
 	block := blockchain.CreateBlock(lastHeader, packTime, conf.EKTConfig.Node)
 	dbft.Blockchain.PackTransaction(clog, block)
 
@@ -331,13 +335,14 @@ func (dbft DbftConsensus) VoteFromPeer(vote blockchain.PeerBlockVote) {
 }
 
 // 收到从其他节点发送过来的voteResult，校验之后可以写入到区块链中
-func (dbft DbftConsensus) RecieveVoteResult(votes blockchain.Votes) bool {
+func (dbft DbftConsensus) ReceiveVoteResult(votes blockchain.Votes) bool {
 	clog := ctxlog.NewContextLog("Receive vote result")
 	defer clog.Finish()
 	if !dbft.ValidateVotes(votes) {
 		clog.Log("invalid", true)
 		return false
 	}
+	log.Debug("Received vote result, current timestamp %d, block.Hash=%s", time.Now().UnixNano(), hex.EncodeToString(votes[0].Vote.BlockHash))
 
 	status := dbft.BlockManager.GetBlockStatus(votes[0].Vote.BlockHash)
 
@@ -368,12 +373,12 @@ func (dbft DbftConsensus) RecieveVoteResult(votes blockchain.Votes) bool {
 
 func (dbft DbftConsensus) SaveBlock(block *blockchain.Block, votes blockchain.Votes) {
 	header := *block.GetHeader()
-	dbft.Round.UpdateIndex(block.Miner.Account)
 	encapdb.SetVoteResults(dbft.Blockchain.ChainId, hex.EncodeToString(block.Hash), votes)
 	encapdb.SetBlockByHeight(dbft.Blockchain.ChainId, header.Height, *block)
 	encapdb.SetHeaderByHeight(dbft.Blockchain.ChainId, header.Height, header)
 	encapdb.SetLastHeader(dbft.Blockchain.ChainId, header)
 	dbft.Blockchain.SetLastHeader(header)
+	log.Debug("Saved block at height %d, block.Hash=%s, current timestamp is %d", header.Height, hex.EncodeToString(block.Hash), time.Now().UnixNano())
 	dbft.Blockchain.NotifyPool(block.GetTransactions())
 }
 

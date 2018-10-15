@@ -101,7 +101,7 @@ func (delegate DelegateNode) VoteFromPeer(vote blockchain.PeerBlockVote) {
 }
 
 func (delegate DelegateNode) VoteResultFromPeer(votes blockchain.Votes) {
-	delegate.dbft.RecieveVoteResult(votes)
+	delegate.dbft.ReceiveVoteResult(votes)
 }
 
 func (delegate DelegateNode) GetVoteResults(chainId int64, hash string) blockchain.Votes {
