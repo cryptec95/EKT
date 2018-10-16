@@ -51,9 +51,8 @@ func (dbft DbftConsensus) BlockFromPeer(clog *ctxlog.ContextLog, block *blockcha
 	// 判断此区块是否是一个interval之前打包的，如果是则放弃vote
 	// unit： ms    单位：ms
 	now := time.Now().UnixNano() / 1e6
-	ttl := 1 * time.Second
-	packEndTime := header.Timestamp + int64(blockchain.BackboneBlockInterval/1e6)
-	if int64(math.Abs(float64(now-packEndTime))) > int64(ttl/1e6) {
+	endTime := header.Timestamp + int64(blockchain.BackboneBlockInterval/1e6)
+	if now < endTime {
 		clog.Log("More than an interval", true)
 		return
 	}

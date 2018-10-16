@@ -42,7 +42,7 @@ func (chain *BlockChain) GetLastHeight() int64 {
 }
 
 func (chain *BlockChain) PackTime(block *Block) time.Duration {
-	return time.Duration(block.GetHeader().Timestamp+2500-time.Now().UnixNano()/1e6) * 1e6
+	return time.Duration(block.GetHeader().Timestamp+2000-time.Now().UnixNano()/1e6) * 1e6
 }
 
 func (chain *BlockChain) PackTransaction(clog *ctxlog.ContextLog, block *Block) {
