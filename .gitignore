@@ -1,3 +1,6 @@
 .idea
 .vscode
 bin/
+mobile/*.jar
+mobile/*.aar
+mobile/*.framework
