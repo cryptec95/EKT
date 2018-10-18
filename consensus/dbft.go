@@ -52,7 +52,7 @@ func (dbft DbftConsensus) BlockFromPeer(clog *ctxlog.ContextLog, block *blockcha
 	// unit： ms    单位：ms
 	now := time.Now().UnixNano() / 1e6
 	endTime := header.Timestamp + int64(blockchain.BackboneBlockInterval/1e6)
-	if now < endTime {
+	if now > endTime {
 		clog.Log("ValidateTime", now)
 		clog.Log("EndTime", endTime)
 		clog.Log("More than an interval", true)
