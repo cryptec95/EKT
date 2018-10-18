@@ -53,6 +53,8 @@ func (dbft DbftConsensus) BlockFromPeer(clog *ctxlog.ContextLog, block *blockcha
 	now := time.Now().UnixNano() / 1e6
 	endTime := header.Timestamp + int64(blockchain.BackboneBlockInterval/1e6)
 	if now < endTime {
+		clog.Log("ValidateTime", now)
+		clog.Log("EndTime", endTime)
 		clog.Log("More than an interval", true)
 		return
 	}
@@ -255,6 +257,7 @@ func (dbft DbftConsensus) Pack(packTime int64) {
 	} else {
 		// 广播
 		clog.Log("block", block)
+		clog.Log("broadcastTime", time.Now().UnixNano()/1e6)
 		go dbft.Client.BroadcastBlock(*block)
 	}
 }
@@ -364,7 +367,6 @@ func (dbft DbftConsensus) ReceiveVoteResult(votes blockchain.Votes) bool {
 		block := dbft.BlockManager.GetBlock(votes[0].Vote.BlockHash)
 		dbft.SaveBlock(block, votes)
 		clog.Log("saved", true)
-		go dbft.TryPack()
 		return true
 	}
 	return false

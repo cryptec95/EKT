@@ -38,6 +38,23 @@ func NewDelegateNode(conf conf.EKTConf) *DelegateNode {
 
 func (delegate DelegateNode) StartNode() {
 	delegate.RecoverFromDB()
+	if delegate.blockchain.GetLastHeight() != 0 {
+		delegate.dbft.TryPack()
+	} else {
+		if delegate.dbft.GetRound().Peers[0].Equal(conf.EKTConfig.Node) {
+			delegate.dbft.TryPack()
+		} else {
+			for {
+				if !delegate.dbft.SyncHeight(1) {
+					time.Sleep(200 * time.Millisecond)
+				}
+				if delegate.blockchain.GetLastHeight() != 0 {
+					delegate.dbft.TryPack()
+					break
+				}
+			}
+		}
+	}
 	go delegate.sync()
 }
 
@@ -50,11 +67,6 @@ func (delegate DelegateNode) sync() {
 		}
 		height := delegate.dbft.Blockchain.GetLastHeight()
 		if height == lastHeight {
-			if fail && failTime >= 3 {
-				if !delegate.seated {
-					go delegate.tryPack()
-				}
-			}
 			log.Debug("Height has not change for an interval, synchronizing block.")
 			if delegate.dbft.SyncHeight(lastHeight + 1) {
 				log.Debug("Synchronized block at lastHeight %d.", lastHeight+1)
@@ -67,14 +79,6 @@ func (delegate DelegateNode) sync() {
 			}
 		} else {
 			lastHeight = height
-		}
-	}
-}
-
-func (delegate DelegateNode) tryPack() {
-	if !delegate.seated {
-		if delegate.dbft.TryPack() {
-			delegate.seated = true
 		}
 	}
 }
