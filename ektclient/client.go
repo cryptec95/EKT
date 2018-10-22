@@ -4,6 +4,9 @@ import (
 	"bytes"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
+	"fmt"
+	"github.com/EducationEKT/EKT/core/userevent"
 	"strconv"
 
 	"github.com/EducationEKT/EKT/blockchain"
@@ -13,22 +16,6 @@ import (
 
 	"github.com/EducationEKT/xserver/x_http/x_resp"
 )
-
-type IClient interface {
-	// block
-	GetHeaderByHeight(height int64) *blockchain.Header
-	GetBlockByHeight(height int64) *blockchain.Block
-	GetLastBlock(peer types.Peer) *blockchain.Header
-	GetHeaderByHash(hash []byte) *blockchain.Header
-
-	// vote
-	GetVotesByBlockHash(hash string) blockchain.Votes
-
-	// delegate
-	BroadcastBlock(block blockchain.Block)
-	SendVote(vote blockchain.PeerBlockVote)
-	SendVoteResult(votes blockchain.Votes)
-}
 
 type Client struct {
 	peers []types.Peer
@@ -141,6 +128,66 @@ func (client Client) SendVoteResult(votes blockchain.Votes) {
 		url := util.StringJoint("http://", peer.Address, ":", strconv.Itoa(int(peer.Port)), "/vote/api/voteResult")
 		go util.HttpPost(url, data)
 	}
+}
+
+func (client Client) GetSuggestionFee() int64 {
+	for _, peer := range client.peers {
+		url := util.StringJoint("http://", peer.Address, ":", strconv.Itoa(int(peer.Port)), "/transaction/api/fee")
+		body, err := util.HttpGet(url)
+		if err != nil {
+			continue
+		}
+		var resp x_resp.XRespBody
+		err = json.Unmarshal(body, &resp)
+		if err != nil {
+			continue
+		}
+		if resp.Result != nil {
+			fee, ok := resp.Result.(int64)
+			if ok {
+				return fee
+			}
+		}
+	}
+
+	return 0
+}
+
+func (client Client) GetAccountNonce(address string) int64 {
+	for _, peer := range client.peers {
+		url := util.StringJoint("http://", peer.Address, ":", strconv.Itoa(int(peer.Port)), "/account/api/nonce?address=", address)
+		body, err := util.HttpGet(url)
+		if err != nil {
+			continue
+		}
+		var resp x_resp.XRespBody
+		err = json.Unmarshal(body, &resp)
+		if err != nil {
+			continue
+		}
+		if resp.Result != nil {
+			nonce, ok := resp.Result.(int64)
+			if ok {
+				return nonce
+			}
+		}
+	}
+
+	return 0
+}
+
+func (client Client) SendTransaction(tx userevent.Transaction) error {
+	data := tx.Bytes()
+
+	for _, node := range client.peers {
+		url := fmt.Sprintf(`http://%s:%d/transaction/api/newTransaction`, node.Address, node.Port)
+		_, err := util.HttpPost(url, data)
+		if err == nil {
+			return nil
+		}
+	}
+
+	return errors.New("send transaction failed")
 }
 
 func GetVotesFromResp(body []byte) blockchain.Votes {
