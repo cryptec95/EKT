@@ -3,7 +3,7 @@ package vm
 import (
 	"testing"
 
-	"github.com/robertkrimen/otto/parser"
+	"github.com/EducationEKT/EKT/vm/parser"
 )
 
 func Test_cmpl(t *testing.T) {
