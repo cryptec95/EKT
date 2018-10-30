@@ -1,6 +1,7 @@
 package blockchain
 
 import (
+	"bytes"
 	"encoding/hex"
 	"encoding/json"
 
@@ -100,13 +101,13 @@ func (header *Header) NewSubTransaction(txs userevent.SubTransactions) bool {
 		if !exist2 {
 			_to, err := header.GetAccount(tx.To[:32])
 			if err != nil {
-				if len(tx.To) == 64 {
+				if len(tx.To) == types.ContractAddressLength {
 					return false
 				} else {
 					_to = types.NewAccount(tx.To)
 				}
 			}
-			if len(tx.To) == 64 {
+			if len(tx.To) == types.ContractAddressLength {
 				if _to.Contracts == nil {
 					return false
 				}
@@ -193,14 +194,17 @@ func (header *Header) Transfer(from, to *types.Account, tx userevent.SubTransact
 }
 
 func (header *Header) CheckSubTx(from, to *types.Account, tx userevent.SubTransaction) bool {
+	if bytes.EqualFold(tx.From, tx.To) {
+		return false
+	}
 	if len(tx.From) == 32 {
 		switch tx.TokenAddress {
 		case types.EKTAddress:
-			return from.Amount > tx.Amount
+			return from.Amount >= tx.Amount
 		case types.GasAddress:
-			return from.Gas > tx.Amount
+			return from.Gas >= tx.Amount
 		default:
-			if from.Balances != nil && from.Balances[tx.TokenAddress] > tx.Amount {
+			if from.Balances != nil && from.Balances[tx.TokenAddress] >= tx.Amount {
 				return true
 			}
 		}
@@ -211,11 +215,11 @@ func (header *Header) CheckSubTx(from, to *types.Account, tx userevent.SubTransa
 		contractAccount := from.Contracts[hex.EncodeToString(subAddr)]
 		switch tx.TokenAddress {
 		case types.EKTAddress:
-			return contractAccount.Amount > tx.Amount
+			return contractAccount.Amount >= tx.Amount
 		case types.GasAddress:
-			return contractAccount.Gas > tx.Amount
+			return contractAccount.Gas >= tx.Amount
 		default:
-			if contractAccount.Balances != nil && contractAccount.Balances[tx.TokenAddress] > tx.Amount {
+			if contractAccount.Balances != nil && contractAccount.Balances[tx.TokenAddress] >= tx.Amount {
 				return true
 			}
 		}

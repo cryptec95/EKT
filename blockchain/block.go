@@ -86,8 +86,6 @@ func (block *Block) SetHeader(header *Header) {
 func (block *Block) NewTransaction(tx userevent.Transaction) *userevent.TransactionReceipt {
 	if !block.GetHeader().CheckTransfer(tx) {
 		receipt := userevent.NewTransactionReceipt(tx, false, userevent.FailType_CHECK_FAIL)
-		block.Transactions = append(block.Transactions, tx)
-		block.TransactionReceipts = append(block.TransactionReceipts, receipt)
 		return &receipt
 	}
 	switch len(tx.To) {
@@ -98,8 +96,6 @@ func (block *Block) NewTransaction(tx userevent.Transaction) *userevent.Transact
 		receipt := userevent.NewTransactionReceipt(tx, true, userevent.FailType_SUCCESS)
 		receipt.SubTransactions = txs
 		block.GetHeader().NewSubTransaction(txs)
-		block.Transactions = append(block.Transactions, tx)
-		block.TransactionReceipts = append(block.TransactionReceipts, receipt)
 		return &receipt
 	case types.ContractAddressLength:
 		toAccountAddress, toContractAddress := tx.To[:32], tx.To[32:]
@@ -110,17 +106,13 @@ func (block *Block) NewTransaction(tx userevent.Transaction) *userevent.Transact
 		if _, exist := to.Contracts[hex.EncodeToString(toContractAddress)]; !exist {
 			if !contract.InitContractAccount(tx, to) {
 				receipt := userevent.NewTransactionReceipt(tx, false, userevent.FailType_INIT_CONTRACT_ACCOUNT_FAIL)
-				block.Transactions = append(block.Transactions, tx)
-				block.TransactionReceipts = append(block.TransactionReceipts, receipt)
 				return &receipt
 			}
 		}
 		receipt, data := contract.Run(tx, to)
 		if !receipt.Success {
 			_receipt := userevent.NewTransactionReceipt(tx, false, userevent.FailType_CONTRACT_ERROR)
-			block.Transactions = append(block.Transactions, tx)
-			block.TransactionReceipts = append(block.TransactionReceipts, _receipt)
-			return receipt
+			return &_receipt
 		} else {
 			contractAccount := to.Contracts[hex.EncodeToString(toContractAddress)]
 			contractAccount.ContractData = data
@@ -129,9 +121,7 @@ func (block *Block) NewTransaction(tx userevent.Transaction) *userevent.Transact
 		}
 		if !block.CheckSubTransaction(tx, receipt.SubTransactions) {
 			_receipt := userevent.NewTransactionReceipt(tx, false, userevent.FailType_CONTRACT_ERROR)
-			block.Transactions = append(block.Transactions, tx)
-			block.TransactionReceipts = append(block.TransactionReceipts, _receipt)
-			return receipt
+			return &_receipt
 		}
 		txs := make(userevent.SubTransactions, 0)
 		subTx := userevent.NewSubTransaction(tx.TxId(), tx.From, tx.To, tx.Amount, tx.Data, tx.TokenAddress)
@@ -139,13 +129,9 @@ func (block *Block) NewTransaction(tx userevent.Transaction) *userevent.Transact
 		txs = append(txs, receipt.SubTransactions...)
 		receipt.Success = block.GetHeader().NewSubTransaction(txs)
 		receipt.SubTransactions = txs
-		block.Transactions = append(block.Transactions, tx)
-		block.TransactionReceipts = append(block.TransactionReceipts, *receipt)
 		return receipt
 	default:
 		receipt := userevent.NewTransactionReceipt(tx, false, userevent.FailType_INVALID_ADDRESS)
-		block.Transactions = append(block.Transactions, tx)
-		block.TransactionReceipts = append(block.TransactionReceipts, receipt)
 		return &receipt
 	}
 }
