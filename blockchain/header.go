@@ -228,10 +228,10 @@ func (header *Header) CheckSubTx(from, to *types.Account, tx userevent.SubTransa
 }
 
 func (header *Header) CheckFromAndBurnGas(tx userevent.Transaction) bool {
-	if len(tx.From) != 32 {
+	if len(tx.From) != types.AccountAddressLength {
 		return false
 	}
-	if len(tx.To) != 32 && len(tx.To) != 64 {
+	if len(tx.To) != types.AccountAddressLength && len(tx.To) != types.ContractAddressLength {
 		return false
 	}
 	account, err := header.GetAccount(tx.GetFrom())
