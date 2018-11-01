@@ -52,7 +52,7 @@ func init() {
 		os.Exit(-1)
 	}
 
-	node.Init(m)
+	go node.Init(m)
 
 	http.HandleFunc("/", x_http.Service)
 }
