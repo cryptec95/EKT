@@ -23,20 +23,21 @@ func NewTxPool() *TxPool {
 func (pool *TxPool) Park(tx *userevent.Transaction, userNonce int64) {
 	if pool.all.Get(tx.TransactionId()) == nil {
 		pool.all.Save(tx)
-		if pool.usersTxs.SaveTx(tx, userNonce) {
-			pool.list.Put(tx)
+		if txs, ready := pool.usersTxs.SaveTx(tx, userNonce); ready {
+			pool.list.Put(txs...)
 		}
 	}
 }
 
 func (pool *TxPool) Pop(size int) []*userevent.Transaction {
-	return pool.list.Pop(size)
+	txs := pool.list.Pop(size)
+	return txs
 }
 
 func (pool *TxPool) Notify(txs []userevent.Transaction) {
 	for _, tx := range txs {
 		pool.all.Delete(tx.TransactionId())
-		pool.usersTxs.Remove(tx)
+		pool.usersTxs.Notify(tx)
 		pool.list.Notify(tx)
 	}
 }

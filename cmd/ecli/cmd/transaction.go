@@ -104,12 +104,12 @@ func BenchTest(cmd *cobra.Command, args []string) {
 	}
 	amount := 1000000
 	nonce := getAccountNonce(hex.EncodeToString(from))
-	tx := userevent.NewTransaction(from, to, time.Now().UnixNano()/1e6, int64(amount), 510000, nonce, "", "")
+	tx := userevent.NewTransaction(from, to, time.Now().UnixNano()/1e6, int64(amount), 0, nonce, "", "")
 	testTPS(tx, privKey)
 }
 
 func testTPS(tx *userevent.Transaction, priv []byte) {
-	max, min := tx.Nonce+2000, tx.Nonce
+	max, min := tx.Nonce+20000, tx.Nonce
 	for nonce := max; nonce >= min; nonce-- {
 		tx.Nonce = int64(nonce)
 		userevent.SignTransaction(tx, priv)

@@ -66,7 +66,9 @@ func (chain *BlockChain) PackTransaction(clog *ctxlog.ContextLog, block *Block) 
 					start = time.Now().UnixNano()
 				}
 				for _, tx := range txs {
-					block.NewTransaction(*tx)
+					receipt := block.NewTransaction(*tx)
+					block.Transactions = append(block.Transactions, *tx)
+					block.TransactionReceipts = append(block.TransactionReceipts, *receipt)
 				}
 				numTx += len(txs)
 			}
@@ -99,7 +101,9 @@ func (chain *BlockChain) ValidateBlock(next Block) bool {
 	lastHeader := chain.LastHeader()
 	newBlock := CreateBlock(lastHeader, next.GetHeader().Timestamp, next.Miner)
 	for _, tx := range next.GetTransactions() {
-		newBlock.NewTransaction(tx)
+		receipt := newBlock.NewTransaction(tx)
+		newBlock.Transactions = append(newBlock.Transactions, tx)
+		newBlock.TransactionReceipts = append(newBlock.TransactionReceipts, *receipt)
 	}
 	newBlock.Finish()
 	if !bytes.EqualFold(newBlock.GetHeader().CaculateHash(), next.Hash) {

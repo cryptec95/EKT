@@ -135,6 +135,18 @@
 			"revisionTime": "2018-09-17T07:08:11Z"
 		},
 		{
+			"checksumSHA1": "OFaReqy4hyrLlTTYFmcqkvidHsQ=",
+			"path": "github.com/go-sourcemap/sourcemap",
+			"revision": "b019cc30c1eaa584753491b0d8f8c1534bf1eb44",
+			"revisionTime": "2018-01-19T11:52:46Z"
+		},
+		{
+			"checksumSHA1": "0E8fllZSmEqSDpUEKUZ+GyyrK5k=",
+			"path": "github.com/go-sourcemap/sourcemap/internal/base64vlq",
+			"revision": "b019cc30c1eaa584753491b0d8f8c1534bf1eb44",
+			"revisionTime": "2018-01-19T11:52:46Z"
+		},
+		{
 			"checksumSHA1": "GaJLoEuMGnP5ofXvuweAI4wx06U=",
 			"path": "github.com/golang/protobuf/proto",
 			"revision": "a47340a8e42c4ceb44c00c2a05199e24b24fcaef",
