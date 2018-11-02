@@ -50,6 +50,8 @@ type _global struct {
 	ReferenceErrorPrototype *_object
 	SyntaxErrorPrototype    *_object
 	URIErrorPrototype       *_object
+
+	AWMVM *_object
 }
 
 type _runtime struct {
