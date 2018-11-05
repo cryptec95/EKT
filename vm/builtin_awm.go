@@ -10,12 +10,12 @@ import (
 	"github.com/EducationEKT/EKT/crypto"
 )
 
-func builtinAWMVM_Sha3_256(call FunctionCall) Value {
+func builtinAWM_Sha3_256(call FunctionCall) Value {
 	param := call.Argument(0).string()
 	return toValue_string(hex.EncodeToString(crypto.Sha3_256([]byte(param))))
 }
 
-func builtinAWMVM_ecrecover(call FunctionCall) Value {
+func builtinAWM_secp256k1_ecrecover(call FunctionCall) Value {
 	msg := call.Argument(0).string()
 	sign := call.Argument(1).string()
 	msg_b, err := hex.DecodeString(msg)
@@ -33,7 +33,7 @@ func builtinAWMVM_ecrecover(call FunctionCall) Value {
 	return toValue_string(hex.EncodeToString(types.FromPubKeyToAddress(pubKey)))
 }
 
-func builtinAWMVM_verify(call FunctionCall) Value {
+func builtinAWM_secp256k1_verify(call FunctionCall) Value {
 	msg := call.Argument(0).string()
 	sign := call.Argument(1).string()
 	address := call.Argument(2).string()
@@ -56,7 +56,7 @@ func builtinAWMVM_verify(call FunctionCall) Value {
 	return toValue_bool(bytes.EqualFold(types.FromPubKeyToAddress(pubKey), address_b))
 }
 
-func builtinAWMVM_Contract_Refuse_Tx(call FunctionCall) Value {
+func builtinAWM_Contract_Refuse_Tx(call FunctionCall) Value {
 	data := call.Argument(0).string()
 	var tx userevent.Transaction
 	err := json.Unmarshal([]byte(data), &tx)
