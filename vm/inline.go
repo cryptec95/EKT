@@ -5702,6 +5702,115 @@ func _newContext(runtime *_runtime) {
 			},
 		}
 	}
+
+	// 自定义AWMVM
+	{
+		sha3_256 := &_object{
+			runtime:     runtime,
+			class:       "Function",
+			objectClass: _classObject,
+			prototype:   runtime.global.FunctionPrototype,
+			extensible:  true,
+			property: map[string]_property{
+				"length": _property{
+					mode: 0,
+					value: Value{
+						kind:  valueNumber,
+						value: 2,
+					},
+				},
+			},
+			propertyOrder: []string{
+				"length",
+			},
+			value: _nativeFunctionObject{
+				name: "sha3_256",
+				call: builtinAWM_Sha3_256,
+			},
+		}
+		verify_function := &_object{
+			runtime:     runtime,
+			class:       "Function",
+			objectClass: _classObject,
+			prototype:   runtime.global.FunctionPrototype,
+			extensible:  true,
+			property: map[string]_property{
+				"length": _property{
+					mode: 0,
+					value: Value{
+						kind:  valueNumber,
+						value: 3,
+					},
+				},
+			},
+			propertyOrder: []string{
+				"length",
+			},
+			value: _nativeFunctionObject{
+				name: "verify",
+				call: builtinAWM_secp256k1_verify,
+			},
+		}
+		ecrecover_function := &_object{
+			runtime:     runtime,
+			class:       "Function",
+			objectClass: _classObject,
+			prototype:   runtime.global.FunctionPrototype,
+			extensible:  true,
+			property: map[string]_property{
+				"length": _property{
+					mode: 0,
+					value: Value{
+						kind:  valueNumber,
+						value: 3,
+					},
+				},
+			},
+			propertyOrder: []string{
+				"length",
+			},
+			value: _nativeFunctionObject{
+				name: "ecrecover",
+				call: builtinAWM_secp256k1_ecrecover,
+			},
+		}
+		runtime.global.AWM = &_object{
+			runtime:     runtime,
+			class:       "AWM",
+			objectClass: _classObject,
+			prototype:   runtime.global.ObjectPrototype,
+			extensible:  true,
+			property: map[string]_property{
+				"sha3_256": _property{
+					mode: 0101,
+					value: Value{
+						kind:  valueObject,
+						value: sha3_256,
+					},
+				},
+				"verify": _property{
+					mode: 0101,
+					value: Value{
+						kind:  valueObject,
+						value: verify_function,
+					},
+				},
+				"ecrecover": {
+					mode: 0101,
+					value: Value{
+						kind:  valueObject,
+						value: ecrecover_function,
+					},
+				},
+			},
+			propertyOrder: []string{
+				"sha3_256",
+				"verify",
+				"ecrecover",
+			},
+		}
+	}
+
 	{
 		eval_function := &_object{
 			runtime:     runtime,
@@ -6173,6 +6282,13 @@ func _newContext(runtime *_runtime) {
 					value: math.Inf(+1),
 				},
 			},
+			"AWM": {
+				mode: 0,
+				value: Value{
+					kind:  valueObject,
+					value: runtime.global.AWM,
+				},
+			},
 		}
 		runtime.globalObject.propertyOrder = []string{
 			"eval",
@@ -6206,6 +6322,7 @@ func _newContext(runtime *_runtime) {
 			"undefined",
 			"NaN",
 			"Infinity",
+			"AWM",
 		}
 	}
 }

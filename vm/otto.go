@@ -2,8 +2,12 @@ package vm
 
 import (
 	"fmt"
+	"math/rand"
+	"strconv"
 	"strings"
 
+	"github.com/EducationEKT/EKT/crypto"
+	"github.com/EducationEKT/EKT/util"
 	"github.com/EducationEKT/EKT/vm/file"
 	"github.com/EducationEKT/EKT/vm/registry"
 )
@@ -14,6 +18,35 @@ type Otto struct {
 	// See "Halting Problem" for more information.
 	Interrupt chan func()
 	runtime   *_runtime
+	rc        int // random count
+}
+
+func NewVM(lastHash []byte, timestamp int64) *Otto {
+	self := &Otto{
+		runtime: newContext(),
+		rc:      0,
+	}
+	self.runtime.otto = self
+	self.runtime.traceLimit = 10
+	self.runtime.timestamp = timestamp
+	self.Set("console", self.runtime.newConsole())
+
+	self.SetRandomSource(func(vm *Otto) float64 {
+		hash := crypto.Sha3_256(lastHash)
+		rcHash := crypto.Sha3_256([]byte(strconv.Itoa(vm.rc)))
+		seed1 := util.BytesToInt(hash)
+		seed2 := util.BytesToInt(rcHash)
+		seed := seed1 ^ seed2
+		r := rand.New(rand.NewSource(int64(seed)))
+		vm.rc++
+		return r.Float64()
+	})
+
+	registry.Apply(func(entry registry.Entry) {
+		self.Run(entry.Source())
+	})
+
+	return self
 }
 
 // New will allocate a new JavaScript runtime
@@ -142,7 +175,7 @@ func (self Otto) SetDebuggerHandler(fn func(vm *Otto)) {
 	self.runtime.debugger = fn
 }
 
-func (self Otto) SetRandomSource(fn func() float64) {
+func (self Otto) SetRandomSource(fn func(vm *Otto) float64) {
 	self.runtime.random = fn
 }
 
