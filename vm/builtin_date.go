@@ -5,11 +5,7 @@ import (
 	Time "time"
 )
 
-// Date
-
 const (
-	// TODO Be like V8?
-	// builtinDate_goDateTimeLayout = "Mon Jan 2 2006 15:04:05 GMT-0700 (MST)"
 	builtinDate_goDateTimeLayout = Time.RFC1123 // "Mon, 02 Jan 2006 15:04:05 MST"
 	builtinDate_goDateLayout     = "Mon, 02 Jan 2006"
 	builtinDate_goTimeLayout     = "15:04:05 MST"
@@ -17,11 +13,14 @@ const (
 
 func builtinDate(call FunctionCall) Value {
 	date := &_dateObject{}
-	date.Set(newDateTime([]Value{}, Time.Local))
+	date.SetTime(Time.Unix(call.runtime.timestamp/1000, (call.runtime.timestamp%1000)*1e6))
 	return toValue_string(date.Time().Format(builtinDate_goDateTimeLayout))
 }
 
 func builtinNewDate(self *_object, argumentList []Value) Value {
+	if len(argumentList) == 0 {
+		return toValue_object(self.runtime.newDate(float64(self.runtime.timestamp)))
+	}
 	return toValue_object(self.runtime.newDate(newDateTime(argumentList, Time.Local)))
 }
 
