@@ -5725,7 +5725,7 @@ func _newContext(runtime *_runtime) {
 			},
 			value: _nativeFunctionObject{
 				name: "sha3_256",
-				call: builtinAWMVM_Sha3_256,
+				call: builtinAWM_Sha3_256,
 			},
 		}
 		verify_function := &_object{
@@ -5748,7 +5748,7 @@ func _newContext(runtime *_runtime) {
 			},
 			value: _nativeFunctionObject{
 				name: "verify",
-				call: builtinAWMVM_verify,
+				call: builtinAWM_secp256k1_verify,
 			},
 		}
 		ecrecover_function := &_object{
@@ -5771,12 +5771,12 @@ func _newContext(runtime *_runtime) {
 			},
 			value: _nativeFunctionObject{
 				name: "ecrecover",
-				call: builtinAWMVM_ecrecover,
+				call: builtinAWM_secp256k1_ecrecover,
 			},
 		}
-		runtime.global.AWMVM = &_object{
+		runtime.global.AWM = &_object{
 			runtime:     runtime,
-			class:       "AWMVM",
+			class:       "AWM",
 			objectClass: _classObject,
 			prototype:   runtime.global.ObjectPrototype,
 			extensible:  true,
@@ -6282,11 +6282,11 @@ func _newContext(runtime *_runtime) {
 					value: math.Inf(+1),
 				},
 			},
-			"AWMVM": {
+			"AWM": {
 				mode: 0,
 				value: Value{
 					kind:  valueObject,
-					value: runtime.global.AWMVM,
+					value: runtime.global.AWM,
 				},
 			},
 		}
@@ -6322,7 +6322,7 @@ func _newContext(runtime *_runtime) {
 			"undefined",
 			"NaN",
 			"Infinity",
-			"AWMVM",
+			"AWM",
 		}
 	}
 }
