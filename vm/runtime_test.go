@@ -807,7 +807,7 @@ func Test_debugger(t *testing.T) {
 func Test_random(t *testing.T) {
 	tt(t, func() {
 		vm := New()
-		vm.SetRandomSource(func() float64 { return 1 })
+		vm.SetRandomSource(func(vm *Otto) float64 { return 1 })
 
 		r, err := vm.Run(`Math.random()`)
 		is(err, nil)

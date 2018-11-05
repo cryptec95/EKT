@@ -19,7 +19,7 @@ func TestRun(t *testing.T) {
 	vm.Set("sign", hex.EncodeToString(sign))
 	vm.Set("address", hex.EncodeToString(address))
 	vm.Run(`
-		console.log(AWMVM.verify(msg, sign, address));
-		console.log(AWMVM.ecrecover(msg, sign));
+		console.log(AWM.verify(msg, sign, address));
+		console.log(AWM.ecrecover(msg, sign));
 	`)
 }

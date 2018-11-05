@@ -51,7 +51,7 @@ type _global struct {
 	SyntaxErrorPrototype    *_object
 	URIErrorPrototype       *_object
 
-	AWMVM *_object
+	AWM *_object
 }
 
 type _runtime struct {
@@ -59,10 +59,11 @@ type _runtime struct {
 	globalObject *_object
 	globalStash  *_objectStash
 	scope        *_scope
+	timestamp    int64
 	otto         *Otto
 	eval         *_object // The builtin eval, for determine indirect versus direct invocation
 	debugger     func(*Otto)
-	random       func() float64
+	random       func(*Otto) float64
 	stackLimit   int
 	traceLimit   int
 

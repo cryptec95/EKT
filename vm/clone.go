@@ -69,7 +69,7 @@ func (in *_runtime) clone() *_runtime {
 		clone.object(in.global.ReferenceErrorPrototype),
 		clone.object(in.global.SyntaxErrorPrototype),
 		clone.object(in.global.URIErrorPrototype),
-		clone.object(in.global.AWMVM),
+		clone.object(in.global.AWM),
 	}
 
 	out.eval = out.globalObject.property["eval"].value.(Value).value.(*_object)

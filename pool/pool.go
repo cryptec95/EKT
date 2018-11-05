@@ -1,6 +1,7 @@
 package pool
 
 import (
+	"encoding/hex"
 	"github.com/EducationEKT/EKT/core/userevent"
 )
 
@@ -27,6 +28,10 @@ func (pool *TxPool) Park(tx *userevent.Transaction, userNonce int64) {
 			pool.list.Put(txs...)
 		}
 	}
+}
+
+func (pool *TxPool) GetTx(hash []byte) *userevent.Transaction {
+	return pool.all.Get(hex.EncodeToString(hash))
 }
 
 func (pool *TxPool) Pop(size int) []*userevent.Transaction {
