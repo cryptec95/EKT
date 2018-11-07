@@ -35,7 +35,7 @@ func InitContractAccount(tx userevent.Transaction, account *types.Account) bool 
 	case SYSTEM_AUTHOR:
 		switch hex.EncodeToString(tx.To[32:]) {
 		case EKT_GAS_BANCOR_CONTRACT:
-			contract := types.NewContractAccount(tx.To[32:], nil)
+			contract := types.NewContractAccount(tx.To[32:], nil, nil)
 			contract.Gas = 1e8
 			if account.Contracts == nil {
 				account.Contracts = make(map[string]types.ContractAccount)
