@@ -5,11 +5,15 @@ import (
 	"encoding/hex"
 	"encoding/json"
 
+	"github.com/EducationEKT/EKT/context"
 	"github.com/EducationEKT/EKT/contract"
 	"github.com/EducationEKT/EKT/core/types"
 	"github.com/EducationEKT/EKT/core/userevent"
 	"github.com/EducationEKT/EKT/crypto"
 	"github.com/EducationEKT/EKT/db"
+	"github.com/EducationEKT/EKT/util"
+
+	"github.com/ethereum/go-ethereum/common/hexutil"
 )
 
 const EMPTY_TX = "ca4510738395af1429224dd785675309c344b2b549632e20275c69b15ed1d210"
@@ -89,6 +93,25 @@ func (block *Block) NewTransaction(tx userevent.Transaction) *userevent.Transact
 		return &receipt
 	}
 	switch len(tx.To) {
+	case 0:
+		// Deploy contract
+		account, _ := block.GetHeader().GetAccount(tx.From)
+		sticker := context.NewSticker()
+		contractData, contractHash, err := contract.InitContract(sticker, account, tx)
+		if err != nil {
+			receipt := userevent.NewTransactionReceipt(tx, false, userevent.FailType_CONTRACT_ERROR)
+			return &receipt
+		}
+		addr, _ := hexutil.Decode(hexutil.EncodeUint64(uint64(len(account.Contracts) + 1)))
+		addr = util.PendingLeft(addr, 32, byte(0))
+		contractAccount := types.NewContractAccount(addr, contractHash, contractData)
+		if account.Contracts == nil {
+			account.Contracts = make(map[string]types.ContractAccount)
+		}
+		account.Contracts[hex.EncodeToString(addr)] = *contractAccount
+		block.GetHeader().StatTree.MustInsert(account.Address, account.ToBytes())
+		receipt := userevent.NewTransactionReceipt(tx, true, userevent.FailType_SUCCESS)
+		return &receipt
 	case types.AccountAddressLength:
 		txs := make(userevent.SubTransactions, 0)
 		subTx := userevent.NewSubTransaction(tx.TxId(), tx.From, tx.To, tx.Amount, tx.Data, tx.TokenAddress)
