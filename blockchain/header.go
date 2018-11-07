@@ -234,6 +234,9 @@ func (header *Header) CheckFromAndBurnGas(tx userevent.Transaction) bool {
 	if len(tx.To) != types.AccountAddressLength && len(tx.To) != types.ContractAddressLength {
 		return false
 	}
+	if tx.Amount < 0 {
+		return false
+	}
 	account, err := header.GetAccount(tx.GetFrom())
 	if err != nil || account == nil || account.Gas < tx.Fee || account.GetNonce()+1 != tx.GetNonce() {
 		return false

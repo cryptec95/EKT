@@ -139,7 +139,7 @@ func (block *Block) NewTransaction(tx userevent.Transaction) *userevent.Transact
 func (block *Block) CheckSubTransaction(tx userevent.Transaction, subTxs userevent.SubTransactions) bool {
 	if len(subTxs) > 0 {
 		for _, subTx := range subTxs {
-			if !bytes.EqualFold(subTx.From, tx.To) {
+			if !bytes.EqualFold(subTx.From, tx.To) || subTx.Amount <= 0 {
 				return false
 			}
 			subTx.Parent = tx.TxId()
