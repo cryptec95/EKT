@@ -2,11 +2,22 @@ package contract
 
 import (
 	"encoding/hex"
+	"encoding/json"
 	"github.com/EducationEKT/EKT/bancor"
 	"github.com/EducationEKT/EKT/core/types"
 	"github.com/EducationEKT/EKT/core/userevent"
 	"math"
 )
+
+type ContractData struct {
+	Prop     map[string]interface{} `json:"prop"`
+	Contract map[string]interface{} `json:"contract"`
+}
+
+func (data ContractData) Bytes() []byte {
+	result, _ := json.Marshal(data)
+	return result
+}
 
 var contracts Contracts
 

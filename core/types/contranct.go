@@ -13,13 +13,13 @@ type ContractAccount struct {
 	Balances     map[string]int64 `json:"balances"`
 }
 
-func NewContractAccount(address []byte, contractHash []byte) *ContractAccount {
+func NewContractAccount(address []byte, contractHash, contractData []byte) *ContractAccount {
 	return &ContractAccount{
 		Address:      address,
 		Amount:       0,
 		Gas:          0,
 		Balances:     make(map[string]int64),
 		CodeHash:     contractHash,
-		ContractData: nil,
+		ContractData: contractData,
 	}
 }
