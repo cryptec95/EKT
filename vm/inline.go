@@ -5774,6 +5774,77 @@ func _newContext(runtime *_runtime) {
 				call: builtinAWM_secp256k1_ecrecover,
 			},
 		}
+
+		mpt_init_function := &_object{
+			runtime:     runtime,
+			class:       "Function",
+			objectClass: _classObject,
+			prototype:   runtime.global.FunctionPrototype,
+			extensible:  true,
+			property: map[string]_property{
+				"length": _property{
+					mode: 0,
+					value: Value{
+						kind:  valueNumber,
+						value: 3,
+					},
+				},
+			},
+			propertyOrder: []string{
+				"length",
+			},
+			value: _nativeFunctionObject{
+				name: "mpt_init",
+				call: builtin_awm_mpt_init,
+			},
+		}
+		mpt_save_function := &_object{
+			runtime:     runtime,
+			class:       "Function",
+			objectClass: _classObject,
+			prototype:   runtime.global.FunctionPrototype,
+			extensible:  true,
+			property: map[string]_property{
+				"length": _property{
+					mode: 0,
+					value: Value{
+						kind:  valueNumber,
+						value: 3,
+					},
+				},
+			},
+			propertyOrder: []string{
+				"length",
+			},
+			value: _nativeFunctionObject{
+				name: "mpt_save",
+				call: builtin_awm_mpt_insert,
+			},
+		}
+		mpt_get_function := &_object{
+			runtime:     runtime,
+			class:       "Function",
+			objectClass: _classObject,
+			prototype:   runtime.global.FunctionPrototype,
+			extensible:  true,
+			property: map[string]_property{
+				"length": _property{
+					mode: 0,
+					value: Value{
+						kind:  valueNumber,
+						value: 3,
+					},
+				},
+			},
+			propertyOrder: []string{
+				"length",
+			},
+			value: _nativeFunctionObject{
+				name: "mpt_get",
+				call: builtin_awm_mpt_get,
+			},
+		}
+
 		runtime.global.AWM = &_object{
 			runtime:     runtime,
 			class:       "AWM",
@@ -5802,11 +5873,35 @@ func _newContext(runtime *_runtime) {
 						value: ecrecover_function,
 					},
 				},
+				"mpt_init": {
+					mode: 0101,
+					value: Value{
+						kind:  valueObject,
+						value: mpt_init_function,
+					},
+				},
+				"mpt_save": {
+					mode: 0101,
+					value: Value{
+						kind:  valueObject,
+						value: mpt_save_function,
+					},
+				},
+				"mpt_get": {
+					mode: 0101,
+					value: Value{
+						kind:  valueObject,
+						value: mpt_get_function,
+					},
+				},
 			},
 			propertyOrder: []string{
 				"sha3_256",
 				"verify",
 				"ecrecover",
+				"mpt_init",
+				"mpt_save",
+				"mpt_get",
 			},
 		}
 	}
