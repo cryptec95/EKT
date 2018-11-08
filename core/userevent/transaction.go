@@ -34,6 +34,8 @@ type Transaction struct {
 	Data         string         `json:"data"`
 	TokenAddress string         `json:"tokenAddress"`
 	Sign         types.HexBytes `json:"sign"`
+
+	Additional string `json:"additional"`
 }
 
 type SubTransaction struct {
