@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/hex"
 	"encoding/json"
+	"strconv"
 
 	"github.com/EducationEKT/EKT/context"
 	"github.com/EducationEKT/EKT/contract"
@@ -11,9 +12,6 @@ import (
 	"github.com/EducationEKT/EKT/core/userevent"
 	"github.com/EducationEKT/EKT/crypto"
 	"github.com/EducationEKT/EKT/db"
-	"github.com/EducationEKT/EKT/util"
-
-	"github.com/ethereum/go-ethereum/common/hexutil"
 )
 
 const EMPTY_TX = "ca4510738395af1429224dd785675309c344b2b549632e20275c69b15ed1d210"
@@ -87,6 +85,14 @@ func (block *Block) SetHeader(header *Header) {
 	block.Header = header
 }
 
+func (block *Block) GetSticker() *context.Sticker {
+	sticker := context.NewSticker()
+	sticker.Save("lastHash", block.GetHeader().PreviousHash)
+	sticker.Save("timestamp", block.GetHeader().Timestamp)
+	sticker.Save("height", block.GetHeader().Height)
+	return sticker
+}
+
 func (block *Block) NewTransaction(tx userevent.Transaction) *userevent.TransactionReceipt {
 	if !block.GetHeader().CheckTransfer(tx) {
 		receipt := userevent.NewTransactionReceipt(tx, false, userevent.FailType_CHECK_FAIL)
@@ -96,15 +102,13 @@ func (block *Block) NewTransaction(tx userevent.Transaction) *userevent.Transact
 	case 0:
 		// Deploy contract
 		account, _ := block.GetHeader().GetAccount(tx.From)
-		sticker := context.NewSticker()
-		contractData, contractHash, err := contract.InitContract(sticker, account, tx)
+		contractData, contractHash, err := contract.InitContract(block.GetSticker(), account, tx)
 		if err != nil {
 			receipt := userevent.NewTransactionReceipt(tx, false, userevent.FailType_CONTRACT_ERROR)
 			return &receipt
 		}
-		addr, _ := hexutil.Decode(hexutil.EncodeUint64(uint64(len(account.Contracts) + 1)))
-		addr = util.PendingLeft(addr, 32, byte(0))
-		contractAccount := types.NewContractAccount(addr, contractHash, contractData)
+		addr := crypto.Sha3_256([]byte(strconv.Itoa(len(account.Contracts) + 1)))
+		contractAccount := types.NewContractAccount(addr, contractHash, *contractData)
 		if account.Contracts == nil {
 			account.Contracts = make(map[string]types.ContractAccount)
 		}
@@ -132,7 +136,7 @@ func (block *Block) NewTransaction(tx userevent.Transaction) *userevent.Transact
 				return &receipt
 			}
 		}
-		receipt, data := contract.Run(tx, to)
+		receipt, data := contract.Run(block.GetSticker(), tx, to)
 		if !receipt.Success {
 			_receipt := userevent.NewTransactionReceipt(tx, false, userevent.FailType_CONTRACT_ERROR)
 			return &_receipt
