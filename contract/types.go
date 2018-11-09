@@ -3,7 +3,6 @@ package contract
 import (
 	"encoding/hex"
 	"encoding/json"
-	"fmt"
 	"math"
 
 	"github.com/EducationEKT/EKT/bancor"
@@ -13,16 +12,6 @@ import (
 	"github.com/EducationEKT/EKT/db"
 	"github.com/EducationEKT/EKT/vm"
 )
-
-type ContractData struct {
-	Prop     map[string]interface{} `json:"prop"`
-	Contract map[string]interface{} `json:"contract"`
-}
-
-func (data ContractData) Bytes() []byte {
-	result, _ := json.Marshal(data)
-	return result
-}
 
 type IContract interface {
 	Recover(data []byte) bool
@@ -41,7 +30,9 @@ func NewVMContract(lastHash []byte, timestamp int64) *VMContract {
 }
 
 func (vmContract VMContract) Recover(data []byte) bool {
-	_, _, err := vm.Run("contract = JSON.parse(" + string(data) + ").contract;")
+	str := "var data = '" + string(data) + "';"
+	vmContract.VM.Run(str)
+	_, err := vmContract.VM.Run("contract = JSON.parse(data);")
 	if err != nil {
 		return false
 	}
@@ -49,10 +40,13 @@ func (vmContract VMContract) Recover(data []byte) bool {
 }
 
 func (vmContract VMContract) Data() []byte {
-	_, value, err := vm.Run(`
+	_, err := vmContract.VM.Run(`
 		var data = JSON.stringify(contract);
-		return data;
 	`)
+	if err != nil {
+		return nil
+	}
+	value, err := vmContract.VM.Get("data")
 	if err != nil {
 		return nil
 	}
@@ -60,11 +54,21 @@ func (vmContract VMContract) Data() []byte {
 }
 
 func (vmContract VMContract) Call(tx userevent.Transaction) (*userevent.TransactionReceipt, []byte) {
-	call := fmt.Sprintf(`
-		var result = call(%s);
-		return JSON.stringify(result);
-	`)
-	_, value, err := vm.Run(call)
+	vmContract.VM.Set("tx", string(tx.Bytes()))
+	vmContract.VM.Set("data", tx.Data)
+	vmContract.VM.Set("additional", tx.Additional)
+	call := `
+		var result = call();
+		var txs = "[]";
+		if (result !== undefined && result !== null) {
+			txs = JSON.stringify(result);
+		}
+	`
+	_, err := vmContract.VM.Run(call)
+	if err != nil {
+		return userevent.ContractRefuseTx(tx), nil
+	}
+	value, err := vmContract.VM.Get("txs")
 	if err != nil {
 		return userevent.ContractRefuseTx(tx), nil
 	}
@@ -86,8 +90,10 @@ func getContract(ctx *context.Sticker, address []byte, account *types.Account) I
 		case EKT_GAS_BANCOR_CONTRACT:
 			b := bancor.NewBancor(EKT_GAS_PARAM_CW, math.Pow10(types.EKT_DECIMAL), EKT_GAS_PARAM_INIT_SMART_TOKEN, EKT_GAS_PARAM_TOTAL_SMART_TOKEN, types.EKTAddress, types.GasAddress)
 			contractAccount := account.Contracts[hex.EncodeToString(subAddress)]
-			if contractAccount.ContractData != nil {
-				b.Recover(contractAccount.ContractData)
+			if len(contractAccount.ContractData) > 0 {
+				var contractData types.ContractData
+				json.Unmarshal(contractAccount.ContractData, &contractData)
+				b.Recover([]byte(contractData.Contract))
 			}
 			return b
 		default:
@@ -102,7 +108,6 @@ func getContract(ctx *context.Sticker, address []byte, account *types.Account) I
 			if err != nil {
 				return nil
 			}
-			contractData := string(contractAccount.ContractData)
 			lastHash, _ := ctx.GetBytes("lastHash")
 			timestamp, _ := ctx.GetInt64("timestamp")
 			vmContract := NewVMContract(lastHash, timestamp)
@@ -110,7 +115,9 @@ func getContract(ctx *context.Sticker, address []byte, account *types.Account) I
 			if err != nil {
 				return nil
 			}
-			if !vmContract.Recover([]byte(contractData)) {
+			var contractData types.ContractData
+			json.Unmarshal(contractAccount.ContractData, &contractData)
+			if !vmContract.Recover([]byte(contractData.Contract)) {
 				return nil
 			}
 			return vmContract
