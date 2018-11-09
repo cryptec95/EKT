@@ -132,7 +132,11 @@ func (block *Block) NewTransaction(tx userevent.Transaction) *userevent.Transact
 				return &receipt
 			}
 		}
-		receipt, data := contract.Run(tx, to)
+		sticker := context.NewSticker()
+		sticker.Save("lastHash", block.GetHeader().PreviousHash)
+		sticker.Save("timestamp", block.GetHeader().Timestamp)
+		sticker.Save("height", block.GetHeader().Height)
+		receipt, data := contract.Run(sticker, tx, to)
 		if !receipt.Success {
 			_receipt := userevent.NewTransactionReceipt(tx, false, userevent.FailType_CONTRACT_ERROR)
 			return &_receipt

@@ -12,9 +12,8 @@ import (
 	"github.com/EducationEKT/EKT/vm"
 )
 
-func Run(tx userevent.Transaction, account *types.Account) (*userevent.TransactionReceipt, []byte) {
-	c := getContract(tx.To, account)
-	contractData := c.Data()
+func Run(ctx *context.Sticker, tx userevent.Transaction, account *types.Account) (*userevent.TransactionReceipt, []byte) {
+	c := getContract(ctx, tx.To, account)
 	if c == nil {
 		return userevent.ContractRefuseTx(tx), nil
 	}
@@ -22,11 +21,6 @@ func Run(tx userevent.Transaction, account *types.Account) (*userevent.Transacti
 	if receipt == nil {
 		receipt = userevent.ContractRefuseTx(tx)
 	}
-	if receipt.Success {
-		contractData = data
-	}
-	c.Recover(contractData)
-	updateContract(tx.To, c)
 	return receipt, data
 }
 
