@@ -87,6 +87,14 @@ func (block *Block) SetHeader(header *Header) {
 	block.Header = header
 }
 
+func (block *Block) GetSticker() *context.Sticker {
+	sticker := context.NewSticker()
+	sticker.Save("lastHash", block.GetHeader().PreviousHash)
+	sticker.Save("timestamp", block.GetHeader().Timestamp)
+	sticker.Save("height", block.GetHeader().Height)
+	return sticker
+}
+
 func (block *Block) NewTransaction(tx userevent.Transaction) *userevent.TransactionReceipt {
 	if !block.GetHeader().CheckTransfer(tx) {
 		receipt := userevent.NewTransactionReceipt(tx, false, userevent.FailType_CHECK_FAIL)
@@ -96,8 +104,7 @@ func (block *Block) NewTransaction(tx userevent.Transaction) *userevent.Transact
 	case 0:
 		// Deploy contract
 		account, _ := block.GetHeader().GetAccount(tx.From)
-		sticker := context.NewSticker()
-		contractData, contractHash, err := contract.InitContract(sticker, account, tx)
+		contractData, contractHash, err := contract.InitContract(block.GetSticker(), account, tx)
 		if err != nil {
 			receipt := userevent.NewTransactionReceipt(tx, false, userevent.FailType_CONTRACT_ERROR)
 			return &receipt
@@ -132,11 +139,7 @@ func (block *Block) NewTransaction(tx userevent.Transaction) *userevent.Transact
 				return &receipt
 			}
 		}
-		sticker := context.NewSticker()
-		sticker.Save("lastHash", block.GetHeader().PreviousHash)
-		sticker.Save("timestamp", block.GetHeader().Timestamp)
-		sticker.Save("height", block.GetHeader().Height)
-		receipt, data := contract.Run(sticker, tx, to)
+		receipt, data := contract.Run(block.GetSticker(), tx, to)
 		if !receipt.Success {
 			_receipt := userevent.NewTransactionReceipt(tx, false, userevent.FailType_CONTRACT_ERROR)
 			return &_receipt
