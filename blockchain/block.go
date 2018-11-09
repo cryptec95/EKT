@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/hex"
 	"encoding/json"
+	"strconv"
 
 	"github.com/EducationEKT/EKT/context"
 	"github.com/EducationEKT/EKT/contract"
@@ -11,9 +12,6 @@ import (
 	"github.com/EducationEKT/EKT/core/userevent"
 	"github.com/EducationEKT/EKT/crypto"
 	"github.com/EducationEKT/EKT/db"
-	"github.com/EducationEKT/EKT/util"
-
-	"github.com/ethereum/go-ethereum/common/hexutil"
 )
 
 const EMPTY_TX = "ca4510738395af1429224dd785675309c344b2b549632e20275c69b15ed1d210"
@@ -109,9 +107,8 @@ func (block *Block) NewTransaction(tx userevent.Transaction) *userevent.Transact
 			receipt := userevent.NewTransactionReceipt(tx, false, userevent.FailType_CONTRACT_ERROR)
 			return &receipt
 		}
-		addr, _ := hexutil.Decode(hexutil.EncodeUint64(uint64(len(account.Contracts) + 1)))
-		addr = util.PendingLeft(addr, 32, byte(0))
-		contractAccount := types.NewContractAccount(addr, contractHash, contractData)
+		addr := crypto.Sha3_256([]byte(strconv.Itoa(len(account.Contracts) + 1)))
+		contractAccount := types.NewContractAccount(addr, contractHash, *contractData)
 		if account.Contracts == nil {
 			account.Contracts = make(map[string]types.ContractAccount)
 		}
