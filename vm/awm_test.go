@@ -23,8 +23,6 @@ func TestRun(t *testing.T) {
 		console.log(AWM.sha3_256("123456"));
 		console.log(AWM.verify(msg, sign, address));
 		console.log(AWM.ecrecover(msg, sign));
-		
-
 	`)
 }
 

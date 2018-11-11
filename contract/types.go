@@ -58,6 +58,8 @@ func (vmContract VMContract) Call(tx userevent.Transaction) (*userevent.Transact
 	vmContract.VM.Set("data", tx.Data)
 	vmContract.VM.Set("additional", tx.Additional)
 	call := `
+		var transaction = JSON.parse(tx);
+
 		var result = call();
 		var txs = "[]";
 		if (result !== undefined && result !== null) {
