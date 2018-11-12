@@ -19,6 +19,7 @@ const (
 	FailType_INVALID_ADDRESS
 	FailType_INVALID_CONTRACT_ADDRESS
 	FailType_INIT_CONTRACT_ACCOUNT_FAIL
+	FailType_CHECK_CONTRACT_SUBTX_ERROR
 )
 
 type Transactions []Transaction

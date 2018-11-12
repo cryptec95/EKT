@@ -112,6 +112,10 @@ func (block *Block) NewTransaction(tx userevent.Transaction) *userevent.Transact
 		if account.Contracts == nil {
 			account.Contracts = make(map[string]types.ContractAccount)
 		}
+		if tx.Amount > 0 && tx.TokenAddress == "" && account.GetAmount() >= tx.Amount {
+			account.Amount -= tx.Amount
+			contractAccount.Amount += tx.Amount
+		}
 		account.Contracts[hex.EncodeToString(addr)] = *contractAccount
 		block.GetHeader().StatTree.MustInsert(account.Address, account.ToBytes())
 		receipt := userevent.NewTransactionReceipt(tx, true, userevent.FailType_SUCCESS)
@@ -142,12 +146,15 @@ func (block *Block) NewTransaction(tx userevent.Transaction) *userevent.Transact
 			return &_receipt
 		} else {
 			contractAccount := to.Contracts[hex.EncodeToString(toContractAddress)]
-			contractAccount.ContractData = data
+			var contractData types.ContractData
+			json.Unmarshal(contractAccount.ContractData, &contractData)
+			contractData.Contract = string(data)
+			contractAccount.ContractData = contractData.Bytes()
 			to.Contracts[hex.EncodeToString(toContractAddress)] = contractAccount
 			block.GetHeader().StatTree.MustInsert(toAccountAddress, to.ToBytes())
 		}
 		if !block.CheckSubTransaction(tx, receipt.SubTransactions) {
-			_receipt := userevent.NewTransactionReceipt(tx, false, userevent.FailType_CONTRACT_ERROR)
+			_receipt := userevent.NewTransactionReceipt(tx, false, userevent.FailType_CHECK_CONTRACT_SUBTX_ERROR)
 			return &_receipt
 		}
 		txs := make(userevent.SubTransactions, 0)
