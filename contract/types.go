@@ -30,8 +30,7 @@ func NewVMContract(lastHash []byte, timestamp int64) *VMContract {
 }
 
 func (vmContract VMContract) Recover(data []byte) bool {
-	str := "var data = '" + string(data) + "';"
-	vmContract.VM.Run(str)
+	vmContract.VM.Set("data", string(data))
 	_, err := vmContract.VM.Run("contract = JSON.parse(data);")
 	if err != nil {
 		return false
@@ -54,10 +53,13 @@ func (vmContract VMContract) Data() []byte {
 }
 
 func (vmContract VMContract) Call(tx userevent.Transaction) (*userevent.TransactionReceipt, []byte) {
-	vmContract.VM.Set("tx", string(tx.Bytes()))
 	vmContract.VM.Set("data", tx.Data)
 	vmContract.VM.Set("additional", tx.Additional)
+	tx.Data = ""
+	tx.Additional = ""
+	vmContract.VM.Set("tx", string(tx.Bytes()))
 	call := `
+		var transaction = JSON.parse(tx);
 		var result = call();
 		var txs = "[]";
 		if (result !== undefined && result !== null) {
@@ -111,7 +113,7 @@ func getContract(ctx *context.Sticker, address []byte, account *types.Account) I
 			lastHash, _ := ctx.GetBytes("lastHash")
 			timestamp, _ := ctx.GetInt64("timestamp")
 			vmContract := NewVMContract(lastHash, timestamp)
-			_, err = vmContract.VM.Run(contract)
+			_, err = vmContract.VM.Run(string(contract))
 			if err != nil {
 				return nil
 			}
