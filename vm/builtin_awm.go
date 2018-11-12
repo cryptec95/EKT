@@ -37,10 +37,7 @@ func builtinAWM_secp256k1_verify(call FunctionCall) Value {
 	msg := call.Argument(0).string()
 	sign := call.Argument(1).string()
 	address := call.Argument(2).string()
-	msg_b, err := hex.DecodeString(msg)
-	if err != nil {
-		return toValue_bool(false)
-	}
+	msg_b := crypto.Sha3_256([]byte(msg))
 	sign_b, err := hex.DecodeString(sign)
 	if err != nil {
 		return toValue_bool(false)
