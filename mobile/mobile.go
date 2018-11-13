@@ -150,10 +150,10 @@ func signMsg(param GoMobileParam) string {
 
 func createAccount() string {
 	pub, private := crypto.GenerateKeyPair()
-	address := PubKey2Address(pub)
+	address := PubKey2Address(hex.EncodeToString(pub))
 	m := map[string]interface{}{
 		"private": hex.EncodeToString(private),
-		"address": hex.EncodeToString(address),
+		"address": address,
 	}
 	return buildResp(0, m)
 }
