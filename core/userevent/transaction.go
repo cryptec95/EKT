@@ -177,7 +177,7 @@ func (receipts Receipts) Bytes() []byte {
 }
 
 func (tx *Transaction) TransactionId() string {
-	return hex.EncodeToString(crypto.Sha3_256(tx.TxId()))
+	return hex.EncodeToString(tx.TxId())
 }
 
 func (tx *Transaction) TxId() []byte {
