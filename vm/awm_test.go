@@ -1,13 +1,13 @@
 package vm
 
 import (
-	"github.com/EducationEKT/EKT/db"
 	"testing"
 
 	"encoding/hex"
 
 	"github.com/EducationEKT/EKT/core/types"
 	"github.com/EducationEKT/EKT/crypto"
+	"github.com/EducationEKT/EKT/db"
 )
 
 func TestRun(t *testing.T) {
@@ -15,6 +15,7 @@ func TestRun(t *testing.T) {
 	address := types.FromPubKeyToAddress(pub)
 	msg := crypto.Sha3_256([]byte("123"))
 	sign, _ := crypto.Crypto(msg, pri)
+
 	vm := New()
 	vm.Set("msg", hex.EncodeToString(msg))
 	vm.Set("sign", hex.EncodeToString(sign))
@@ -27,12 +28,9 @@ func TestRun(t *testing.T) {
 }
 
 func Test_AWM_MPT(t *testing.T) {
-	if db.GetDBInst() == nil {
-		db.InitEKTDB("test/testVM")
-	}
+	db.InitEKTDB("test/testVM")
 
 	vm := New()
-
 	vm.Run(`
 		var root = AWM.mpt_init()
 		console.log(root)
@@ -40,5 +38,4 @@ func Test_AWM_MPT(t *testing.T) {
 		console.log(root)
 		console.log(AWM.mpt_get(root, "Hello"))
 	`)
-
 }
