@@ -24,7 +24,7 @@ func NewAccountChange() *AccountChange {
 	}
 }
 
-func (change AccountChange) Add(tokenAddress string, amount int64) {
+func (change *AccountChange) Add(tokenAddress string, amount int64) {
 	value, exist := change.M[tokenAddress]
 	if !exist {
 		value = 0
@@ -33,7 +33,7 @@ func (change AccountChange) Add(tokenAddress string, amount int64) {
 	change.M[tokenAddress] = value
 }
 
-func (change AccountChange) Reduce(tokenAddress string, amount int64) {
+func (change *AccountChange) Reduce(tokenAddress string, amount int64) {
 	value, exist := change.M[tokenAddress]
 	if !exist {
 		value = 0

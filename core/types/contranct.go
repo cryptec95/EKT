@@ -38,7 +38,7 @@ func NewContractAccount(address []byte, contractHash []byte, contractData Contra
 	}
 }
 
-func (account ContractAccount) Transfer(change AccountChange) bool {
+func (account *ContractAccount) Transfer(change AccountChange) bool {
 	for tokenAddr, amount := range change.M {
 		switch tokenAddr {
 		case EKTAddress:
