@@ -2,10 +2,11 @@ package blockchain
 
 import (
 	"bytes"
-	"github.com/EducationEKT/EKT/ctxlog"
 	"time"
 
+	"github.com/EducationEKT/EKT/core/types"
 	"github.com/EducationEKT/EKT/core/userevent"
+	"github.com/EducationEKT/EKT/ctxlog"
 	"github.com/EducationEKT/EKT/log"
 	"github.com/EducationEKT/EKT/pool"
 )
@@ -90,7 +91,13 @@ func (chain *BlockChain) NotifyPool(txs []userevent.Transaction) {
 func (chain *BlockChain) NewTransaction(tx *userevent.Transaction) bool {
 	block := chain.LastHeader()
 	account, err := block.GetAccount(tx.GetFrom())
-	if err != nil || account.GetNonce() >= tx.GetNonce() {
+	if err != nil || account == nil {
+		if tx.GetNonce() != 1 {
+			return false
+		}
+		account = types.NewAccount(tx.From)
+	}
+	if account.GetNonce() >= tx.GetNonce() {
 		return false
 	}
 	chain.Pool.Park(tx, account.GetNonce())
