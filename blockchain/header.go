@@ -245,6 +245,7 @@ func (header *Header) CheckFromAndBurnGas(tx userevent.Transaction) bool {
 	if len(tx.From) != types.AccountAddressLength {
 		return false
 	}
+
 	if len(tx.To) != 0 && len(tx.To) != types.AccountAddressLength && len(tx.To) != types.ContractAddressLength {
 		return false
 	}
@@ -252,7 +253,14 @@ func (header *Header) CheckFromAndBurnGas(tx userevent.Transaction) bool {
 		return false
 	}
 	account, err := header.GetAccount(tx.GetFrom())
-	if err != nil || account == nil || account.Gas < tx.Fee || account.GetNonce()+1 != tx.GetNonce() {
+	if err != nil || account == nil {
+		if tx.GetNonce() != 0 {
+			return false
+		} else {
+			account = types.NewAccount(tx.From)
+		}
+	}
+	if account.Gas < tx.Fee || account.GetNonce()+1 != tx.GetNonce() {
 		return false
 	}
 	switch tx.TokenAddress {
