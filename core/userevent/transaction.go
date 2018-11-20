@@ -19,6 +19,7 @@ const (
 	FailType_INVALID_ADDRESS
 	FailType_INVALID_CONTRACT_ADDRESS
 	FailType_INIT_CONTRACT_ACCOUNT_FAIL
+	FailType_CHECK_CONTRACT_SUBTX_ERROR
 )
 
 type Transactions []Transaction
@@ -34,6 +35,8 @@ type Transaction struct {
 	Data         string         `json:"data"`
 	TokenAddress string         `json:"tokenAddress"`
 	Sign         types.HexBytes `json:"sign"`
+
+	Additional string `json:"additional"`
 }
 
 type SubTransaction struct {
@@ -174,7 +177,7 @@ func (receipts Receipts) Bytes() []byte {
 }
 
 func (tx *Transaction) TransactionId() string {
-	return hex.EncodeToString(crypto.Sha3_256(tx.TxId()))
+	return hex.EncodeToString(tx.TxId())
 }
 
 func (tx *Transaction) TxId() []byte {

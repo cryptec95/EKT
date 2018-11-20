@@ -8,47 +8,30 @@ import (
 	"github.com/EducationEKT/EKT/crypto"
 )
 
-func Sign(msg, privKey []byte) ([]byte, error) {
-	return crypto.Crypto(msg, privKey)
-}
-
 func SignMsg(data, privKey string) string {
-	msg := Sha3_256([]byte(data))
+	msg, _ := hex.DecodeString(Sha3_256(data))
 	if strings.HasPrefix(privKey, "0x") {
 		privKey = privKey[2:]
 	}
 	pk, _ := hex.DecodeString(privKey)
-	sign, _ := Sign(msg, pk)
+	sign, _ := crypto.Crypto(msg, pk)
 	return hex.EncodeToString(sign)
 }
 
-func RecoverPubKey(msg, sign []byte) ([]byte, error) {
-	return crypto.RecoverPubKey(msg, sign)
-}
-
-func GetPubKeyFromPrivKey(priv []byte) ([]byte, error) {
-	return crypto.PubKey(priv)
-}
-
-func PubKey2Address(pubKey []byte) []byte {
-	return types.FromPubKeyToAddress(pubKey)
-}
-
-func PrivKey2Address(priv string) string {
-	if strings.HasPrefix(priv, "0x") {
-		priv = priv[2:]
+func PrivateKey2Address(private string) string {
+	if strings.HasPrefix(private, "0x") {
+		private = private[2:]
 	}
-	privKey, _ := hex.DecodeString(priv)
-	pub, _ := GetPubKeyFromPrivKey(privKey)
+	privKey, _ := hex.DecodeString(private)
+	pub, _ := crypto.PubKey(privKey)
 	return hex.EncodeToString(types.FromPubKeyToAddress(pub))
 }
 
-func GetAccount() string {
-	pub, priv := crypto.GenerateKeyPair()
-	address := PubKey2Address(pub)
-	return hex.EncodeToString(address) + "_" + hex.EncodeToString(priv)
+func PubKey2Address(pub string) string {
+	pubKey, _ := hex.DecodeString(pub)
+	return hex.EncodeToString(types.FromPubKeyToAddress(pubKey))
 }
 
-func Sha3_256(data []byte) []byte {
-	return crypto.Sha3_256(data)
+func Sha3_256(data string) string {
+	return hex.EncodeToString(crypto.Sha3_256([]byte(data)))
 }

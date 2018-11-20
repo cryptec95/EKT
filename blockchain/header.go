@@ -91,41 +91,55 @@ func NewHeader(last Header, packTime int64, parentHash types.HexBytes, coinbase 
 }
 
 func (header *Header) NewSubTransaction(txs userevent.SubTransactions) bool {
-	m := make(map[string]*types.Account)
+	changes := make(map[string]*types.AccountChange)
+
 	for _, tx := range txs {
-		from, exist1 := m[hex.EncodeToString(tx.From[:32])]
-		to, exist2 := m[hex.EncodeToString(tx.To[:32])]
-		if !exist1 {
-			from, _ = header.GetAccount(tx.From[:32])
+		from, exist := changes[hex.EncodeToString(tx.From)]
+		if !exist {
+			from = types.NewAccountChange()
 		}
-		if !exist2 {
-			_to, err := header.GetAccount(tx.To[:32])
-			if err != nil {
-				if len(tx.To) == types.ContractAddressLength {
-					return false
-				} else {
-					_to = types.NewAccount(tx.To)
-				}
-			}
-			if len(tx.To) == types.ContractAddressLength {
-				if _to.Contracts == nil {
-					return false
-				}
-				if _, exist := _to.Contracts[hex.EncodeToString(tx.To[32:])]; !exist {
-					return false
-				}
-			}
-			to = _to
+		from.Reduce(tx.TokenAddress, tx.Amount)
+		changes[hex.EncodeToString(tx.From)] = from
+
+		to, exist := changes[hex.EncodeToString(tx.To)]
+		if !exist {
+			to = types.NewAccountChange()
 		}
-		if !header.HandleTx(from, to, tx) {
-			return false
-		} else {
-			m[hex.EncodeToString(tx.From[:32])] = from
-			m[hex.EncodeToString(tx.To[:32])] = to
-		}
+		to.Add(tx.TokenAddress, tx.Amount)
+		changes[hex.EncodeToString(tx.To)] = to
 	}
-	for _, account := range m {
-		header.StatTree.MustInsert(account.Address, account.ToBytes())
+
+	for addr, change := range changes {
+		address, err := hex.DecodeString(addr)
+		if err != nil {
+			return false
+		}
+		if len(address) == types.AccountAddressLength {
+			account, err := header.GetAccount(address)
+			if err != nil || account == nil {
+				account = types.NewAccount(address)
+			}
+			if !account.Transfer(*change) {
+				return false
+			}
+			header.StatTree.MustInsert(account.Address, account.ToBytes())
+		} else if len(address) == types.ContractAddressLength {
+			account, err := header.GetAccount(address[:32])
+			if err != nil || account == nil || account.Contracts == nil {
+				return false
+			}
+			contractAccount, exist := account.Contracts[hex.EncodeToString(address[32:])]
+			if !exist {
+				return false
+			}
+			if !contractAccount.Transfer(*change) {
+				return false
+			}
+			account.Contracts[hex.EncodeToString(address[32:])] = contractAccount
+			header.StatTree.MustInsert(account.Address, account.ToBytes())
+		} else {
+			return false
+		}
 	}
 	return true
 }
@@ -231,7 +245,10 @@ func (header *Header) CheckFromAndBurnGas(tx userevent.Transaction) bool {
 	if len(tx.From) != types.AccountAddressLength {
 		return false
 	}
-	if len(tx.To) != types.AccountAddressLength && len(tx.To) != types.ContractAddressLength {
+	if len(tx.To) != 0 && len(tx.To) != types.AccountAddressLength && len(tx.To) != types.ContractAddressLength {
+		return false
+	}
+	if tx.Amount < 0 {
 		return false
 	}
 	account, err := header.GetAccount(tx.GetFrom())

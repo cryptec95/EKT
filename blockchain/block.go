@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"encoding/hex"
 	"encoding/json"
+	"strconv"
 
+	"github.com/EducationEKT/EKT/context"
 	"github.com/EducationEKT/EKT/contract"
 	"github.com/EducationEKT/EKT/core/types"
 	"github.com/EducationEKT/EKT/core/userevent"
@@ -83,12 +85,41 @@ func (block *Block) SetHeader(header *Header) {
 	block.Header = header
 }
 
+func (block *Block) GetSticker() *context.Sticker {
+	sticker := context.NewSticker()
+	sticker.Save("lastHash", block.GetHeader().PreviousHash)
+	sticker.Save("timestamp", block.GetHeader().Timestamp)
+	sticker.Save("height", block.GetHeader().Height)
+	return sticker
+}
+
 func (block *Block) NewTransaction(tx userevent.Transaction) *userevent.TransactionReceipt {
 	if !block.GetHeader().CheckTransfer(tx) {
 		receipt := userevent.NewTransactionReceipt(tx, false, userevent.FailType_CHECK_FAIL)
 		return &receipt
 	}
 	switch len(tx.To) {
+	case 0:
+		// Deploy contract
+		account, _ := block.GetHeader().GetAccount(tx.From)
+		contractData, contractHash, err := contract.InitContract(block.GetSticker(), account, tx)
+		if err != nil {
+			receipt := userevent.NewTransactionReceipt(tx, false, userevent.FailType_CONTRACT_ERROR)
+			return &receipt
+		}
+		addr := crypto.Sha3_256([]byte(strconv.Itoa(len(account.Contracts) + 1)))
+		contractAccount := types.NewContractAccount(addr, contractHash, *contractData)
+		if account.Contracts == nil {
+			account.Contracts = make(map[string]types.ContractAccount)
+		}
+		if tx.Amount > 0 && tx.TokenAddress == "" && account.GetAmount() >= tx.Amount {
+			account.Amount -= tx.Amount
+			contractAccount.Amount += tx.Amount
+		}
+		account.Contracts[hex.EncodeToString(addr)] = *contractAccount
+		block.GetHeader().StatTree.MustInsert(account.Address, account.ToBytes())
+		receipt := userevent.NewTransactionReceipt(tx, true, userevent.FailType_SUCCESS)
+		return &receipt
 	case types.AccountAddressLength:
 		txs := make(userevent.SubTransactions, 0)
 		subTx := userevent.NewSubTransaction(tx.TxId(), tx.From, tx.To, tx.Amount, tx.Data, tx.TokenAddress)
@@ -109,18 +140,21 @@ func (block *Block) NewTransaction(tx userevent.Transaction) *userevent.Transact
 				return &receipt
 			}
 		}
-		receipt, data := contract.Run(tx, to)
+		receipt, data := contract.Run(block.GetSticker(), tx, to)
 		if !receipt.Success {
 			_receipt := userevent.NewTransactionReceipt(tx, false, userevent.FailType_CONTRACT_ERROR)
 			return &_receipt
 		} else {
 			contractAccount := to.Contracts[hex.EncodeToString(toContractAddress)]
-			contractAccount.ContractData = data
+			var contractData types.ContractData
+			json.Unmarshal(contractAccount.ContractData, &contractData)
+			contractData.Contract = string(data)
+			contractAccount.ContractData = contractData.Bytes()
 			to.Contracts[hex.EncodeToString(toContractAddress)] = contractAccount
 			block.GetHeader().StatTree.MustInsert(toAccountAddress, to.ToBytes())
 		}
 		if !block.CheckSubTransaction(tx, receipt.SubTransactions) {
-			_receipt := userevent.NewTransactionReceipt(tx, false, userevent.FailType_CONTRACT_ERROR)
+			_receipt := userevent.NewTransactionReceipt(tx, false, userevent.FailType_CHECK_CONTRACT_SUBTX_ERROR)
 			return &_receipt
 		}
 		txs := make(userevent.SubTransactions, 0)
@@ -139,7 +173,7 @@ func (block *Block) NewTransaction(tx userevent.Transaction) *userevent.Transact
 func (block *Block) CheckSubTransaction(tx userevent.Transaction, subTxs userevent.SubTransactions) bool {
 	if len(subTxs) > 0 {
 		for _, subTx := range subTxs {
-			if !bytes.EqualFold(subTx.From, tx.To) {
+			if !bytes.EqualFold(subTx.From, tx.To) || subTx.Amount <= 0 {
 				return false
 			}
 			subTx.Parent = tx.TxId()
