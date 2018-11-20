@@ -254,7 +254,7 @@ func (header *Header) CheckFromAndBurnGas(tx userevent.Transaction) bool {
 	}
 	account, err := header.GetAccount(tx.GetFrom())
 	if err != nil || account == nil {
-		if tx.GetNonce() != 0 {
+		if tx.GetNonce() != 1 {
 			return false
 		} else {
 			account = types.NewAccount(tx.From)
