@@ -72,6 +72,8 @@ func (chain *BlockChain) PackTransaction(clog *ctxlog.ContextLog, block *Block) 
 					block.TransactionReceipts = append(block.TransactionReceipts, *receipt)
 				}
 				numTx += len(txs)
+			} else {
+				chain.Pool.Promote(*block.GetHeader().StatTree)
 			}
 		}
 		if flag {

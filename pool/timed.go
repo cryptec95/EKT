@@ -7,24 +7,24 @@ import (
 )
 
 type TxTimedList struct {
-	list   []*userevent.Transaction
-	m      map[string]bool
+	List   []*userevent.Transaction `json:"List"`
+	M      map[string]bool          `json:"M"`
 	locker sync.RWMutex
 }
 
 func NewTimedList() *TxTimedList {
 	return &TxTimedList{
-		list:   make([]*userevent.Transaction, 0),
-		m:      make(map[string]bool),
+		List:   make([]*userevent.Transaction, 0),
+		M:      make(map[string]bool),
 		locker: sync.RWMutex{},
 	}
 }
 
 func (list *TxTimedList) Put(txs ...*userevent.Transaction) {
 	list.locker.Lock()
-	list.list = append(list.list, txs...)
+	list.List = append(list.List, txs...)
 	for _, tx := range txs {
-		list.m[tx.TransactionId()] = true
+		list.M[tx.TransactionId()] = true
 	}
 	list.locker.Unlock()
 }
@@ -32,18 +32,18 @@ func (list *TxTimedList) Put(txs ...*userevent.Transaction) {
 func (list *TxTimedList) Pop(size int) []*userevent.Transaction {
 	list.locker.Lock()
 	defer list.locker.Unlock()
-	if len(list.list) < size {
-		result := list.list
-		list.list = list.list[:0]
+	if len(list.List) < size {
+		result := list.List
+		list.List = list.List[:0]
 		for _, tx := range result {
-			delete(list.m, tx.TransactionId())
+			delete(list.M, tx.TransactionId())
 		}
 		return result
 	} else {
-		result := list.list[:size]
-		list.list = list.list[size:]
+		result := list.List[:size]
+		list.List = list.List[size:]
 		for _, tx := range result {
-			delete(list.m, tx.TransactionId())
+			delete(list.M, tx.TransactionId())
 		}
 		return result
 	}
@@ -52,10 +52,10 @@ func (list *TxTimedList) Pop(size int) []*userevent.Transaction {
 func (list *TxTimedList) Notify(tx userevent.Transaction) {
 	list.locker.Lock()
 	defer list.locker.Unlock()
-	if list.m[tx.TransactionId()] {
-		for i, _tx := range list.list {
+	if list.M[tx.TransactionId()] {
+		for i, _tx := range list.List {
 			if bytes.EqualFold(tx.TxId(), _tx.TxId()) {
-				list.list = append(list.list[:i], list.list[i+1:]...)
+				list.List = append(list.List[:i], list.List[i+1:]...)
 				break
 			}
 		}
