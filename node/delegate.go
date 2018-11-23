@@ -17,17 +17,15 @@ import (
 
 type DelegateNode struct {
 	db         db.IKVDatabase
-	config     conf.EKTConf
 	blockchain *blockchain.BlockChain
 	dbft       *consensus.DbftConsensus
 	seated     bool
 	client     ektclient.IClient
 }
 
-func NewDelegateNode(conf conf.EKTConf) *DelegateNode {
+func NewDelegateNode() *DelegateNode {
 	node := &DelegateNode{
 		db:         db.GetDBInst(),
-		config:     conf,
 		seated:     false,
 		blockchain: blockchain.NewBlockChain(1),
 		client:     ektclient.NewClient(param.MainChainDelegateNode),
