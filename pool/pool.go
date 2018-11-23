@@ -51,7 +51,10 @@ func (pool *TxPool) Notify(txs []userevent.Transaction) {
 }
 
 func (pool *TxPool) GetUserTxs(address string) *UserTxs {
-	return pool.UsersTxs.M[address]
+	pool.UsersTxs.locker.RLock()
+	result := pool.UsersTxs.M[address]
+	pool.UsersTxs.locker.RUnlock()
+	return result
 }
 
 func (pool *TxPool) Promote(statdb MPTPlus.MTP) {
