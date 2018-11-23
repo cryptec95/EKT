@@ -25,9 +25,9 @@ func Init(env string) {
 	nodeEnv = env
 	switch env {
 	case NODE_ENV_FULL_SYNC:
-		fullNode = NewFullMode(conf.EKTConfig)
+		fullNode = NewFullMode()
 	case NODE_ENV_DELEGETE:
-		fullNode = NewDelegateNode(conf.EKTConfig)
+		fullNode = NewDelegateNode()
 	case Adaptive:
 		env := checkEnv()
 		Init(env)

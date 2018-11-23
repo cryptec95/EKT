@@ -2,6 +2,8 @@ package api
 
 import (
 	"encoding/hex"
+
+	"github.com/EducationEKT/EKT/conf"
 	"github.com/EducationEKT/EKT/node"
 	"github.com/EducationEKT/xserver/x_err"
 	"github.com/EducationEKT/xserver/x_http/x_req"
@@ -12,6 +14,12 @@ import (
 func init() {
 	x_router.Get("/account/api/info", userInfo)
 	x_router.Get("/account/api/nonce", userNonce)
+
+	x_router.Get("/account/api/genesisAccount", genesisAccount)
+}
+
+func genesisAccount(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
+	return x_resp.Return(conf.EKTConfig.GenesisBlockAccounts, nil)
 }
 
 func userInfo(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {

@@ -13,15 +13,13 @@ import (
 )
 
 type FullNode struct {
-	config     conf.EKTConf
 	blockchain *blockchain.BlockChain
 	dbft       *consensus.DbftConsensus
 	client     ektclient.IClient
 }
 
-func NewFullMode(config conf.EKTConf) *FullNode {
+func NewFullMode() *FullNode {
 	node := &FullNode{
-		config:     config,
 		blockchain: blockchain.NewBlockChain(1),
 		client:     ektclient.NewClient(param.MainChainDelegateNode),
 	}
@@ -30,6 +28,10 @@ func NewFullMode(config conf.EKTConf) *FullNode {
 }
 
 func (node FullNode) StartNode() {
+	accounts := ektclient.NewClient(param.MainChainDelegateNode).GetGenesisAccounts()
+	if len(accounts) > 0 {
+		conf.EKTConfig.GenesisBlockAccounts = accounts
+	}
 	node.recoverFromDB()
 	go node.loop()
 }

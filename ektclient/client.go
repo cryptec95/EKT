@@ -6,13 +6,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/EducationEKT/EKT/core/userevent"
-	"strconv"
-
 	"github.com/EducationEKT/EKT/blockchain"
 	"github.com/EducationEKT/EKT/core/types"
+	"github.com/EducationEKT/EKT/core/userevent"
 	"github.com/EducationEKT/EKT/crypto"
 	"github.com/EducationEKT/EKT/util"
+	"strconv"
 
 	"github.com/EducationEKT/xserver/x_http/x_resp"
 )
@@ -188,6 +187,27 @@ func (client Client) SendTransaction(tx userevent.Transaction) error {
 	}
 
 	return errors.New("send transaction failed")
+}
+
+func (client Client) GetGenesisAccounts() []types.Account {
+	for _, node := range client.peers {
+		url := fmt.Sprintf(`http://%s:%d/account/api/genesisAccount`, node.Address, node.Port)
+		resp, err := util.HttpGet(url)
+		if err != nil {
+			continue
+		}
+		result := struct {
+			Status int             `json:"status"`
+			Msg    string          `json:"msg"`
+			Result []types.Account `json:"result"`
+		}{}
+		err = json.Unmarshal(resp, &result)
+		if err != nil {
+			continue
+		}
+		return result.Result
+	}
+	return nil
 }
 
 func GetVotesFromResp(body []byte) blockchain.Votes {

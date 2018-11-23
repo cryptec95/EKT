@@ -1,19 +1,15 @@
 package types
 
 import (
+	"bytes"
 	"encoding/hex"
-	"errors"
 	"fmt"
 )
 
 type HexBytes []byte
 
 func (hexBytes *HexBytes) UnmarshalJSON(data []byte) error {
-	if len(data) <= 2 {
-		*hexBytes = make([]byte, 0)
-		return errors.New("invalid HexBytes")
-	}
-	data = data[:len(data)-1][1:]
+	data = bytes.Trim(data, `"`)
 	bytes, err := hex.DecodeString(string(data))
 	*hexBytes = bytes
 	return err

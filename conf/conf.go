@@ -19,7 +19,7 @@ type EKTConf struct {
 	Env                  string          `json:"env"`
 }
 
-var EKTConfig EKTConf
+var EKTConfig *EKTConf
 
 func InitConfig(filePath string) error {
 	data, err := ioutil.ReadFile(filePath)
