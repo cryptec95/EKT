@@ -30,6 +30,10 @@ func NewFullMode(config conf.EKTConf) *FullNode {
 }
 
 func (node FullNode) StartNode() {
+	accounts := ektclient.NewClient(param.MainChainDelegateNode).GetGenesisAccounts()
+	if len(accounts) > 0 {
+		conf.EKTConfig.GenesisBlockAccounts = accounts
+	}
 	node.recoverFromDB()
 	go node.loop()
 }
