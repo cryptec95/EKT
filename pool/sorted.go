@@ -45,6 +45,7 @@ type UserTxs struct {
 	Txs    map[int64]*userevent.Transaction `json:"txs"`
 	Nonces *NonceList                       `json:"nonces"`
 	Nonce  int64                            `json:"nonce"`
+	Index  int								`json:"index"`    //nonce在nonces列表中的腳標位置
 }
 
 func NewUserTxs(nonce int64) *UserTxs {
@@ -52,6 +53,7 @@ func NewUserTxs(nonce int64) *UserTxs {
 		Txs:    make(map[int64]*userevent.Transaction),
 		Nonces: NewNonceList(),
 		Nonce:  nonce,
+		Index:  0,
 	}
 }
 
@@ -82,31 +84,25 @@ func (sorted *UserTxs) Save(tx *userevent.Transaction) ([]*userevent.Transaction
 	return nil, false
 }
 
-func (sorted *UserTxs) clearNonces() {
-	newNonces := NewNonceList()
+func (sorted *UserTxs) clearNonces(){
+
 	for i := 0; i < len(*sorted.Nonces); i++ {
 		nonce := (*sorted.Nonces)[i]
-		if nonce > sorted.Nonce {
-			newNonces.Insert(nonce)
-		} else {
-			delete(sorted.Txs, nonce)
+		if nonce == sorted.Nonce {
+			sorted.Index = i
 		}
 	}
-	sorted.Nonces = newNonces
 }
 
 func (sorted *UserTxs) Notify(nonce int64) {
 	sorted.Nonce = nonce
-	newNonces := NewNonceList()
 	for i := 0; i < len(*sorted.Nonces); i++ {
 		nonce := (*sorted.Nonces)[i]
-		if nonce > sorted.Nonce {
-			newNonces.Insert(nonce)
-		} else {
-			delete(sorted.Txs, nonce)
+		if nonce == sorted.Nonce {
+			sorted.Index = i
 		}
 	}
-	sorted.Nonces = newNonces
+
 }
 
 func (sorted *UserTxs) Remove(tx userevent.Transaction) {

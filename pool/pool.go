@@ -12,6 +12,7 @@ type TxPool struct {
 	All      *TransactionDict `json:"All"`
 	List     *TxTimedList     `json:"timedList"`
 	UsersTxs *UsersTxs        `json:"userTxs"`
+
 }
 
 func NewTxPool() *TxPool {
@@ -51,10 +52,7 @@ func (pool *TxPool) Notify(txs []userevent.Transaction) {
 }
 
 func (pool *TxPool) GetUserTxs(address string) *UserTxs {
-	pool.UsersTxs.locker.RLock()
-	result := pool.UsersTxs.M[address]
-	pool.UsersTxs.locker.RUnlock()
-	return result
+	return pool.UsersTxs.M[address]
 }
 
 func (pool *TxPool) Promote(statdb MPTPlus.MTP) {
