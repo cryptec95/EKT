@@ -19,7 +19,6 @@ const (
 )
 
 func init() {
-	fmt.Println("hello init")
 	conf.EKTConfig.Env = "testnet"
 }
 
@@ -39,10 +38,19 @@ func Call(arg string) string {
 	if err != nil {
 		return InvalidParam
 	}
-	return call(param)
+	resp := call(param)
+	if resp == "" {
+		return InternalError
+	}
+	return resp
 }
 
 func call(param GoMobileParam) string {
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Errorf("exception occured, %v", r)
+		}
+	}()
 	switch param.Method {
 	case "CreateAccount":
 		return createAccount()
