@@ -47,9 +47,7 @@ func Call(arg string) string {
 
 func call(param GoMobileParam) string {
 	defer func() {
-		if r := recover(); r != nil {
-			fmt.Errorf("exception occured, %v", r)
-		}
+		recover()
 	}()
 	switch param.Method {
 	case "CreateAccount":
