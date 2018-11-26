@@ -21,6 +21,9 @@ type EncryptPrivateKey struct {
 }
 
 func CreateKeyStore(key, auth string) string {
+	defer func() {
+		recover()
+	}()
 	private, err := hex.DecodeString(key)
 	if err != nil {
 		return ""
@@ -44,6 +47,9 @@ func CreateKeyStore(key, auth string) string {
 }
 
 func DecryptKeystore(keystore, auth string) string {
+	defer func() {
+		recover()
+	}()
 	result := decryptPKV1(keystore, auth)
 	if result != nil {
 		return hex.EncodeToString(result)

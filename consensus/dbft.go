@@ -2,8 +2,6 @@ package consensus
 
 import (
 	"encoding/hex"
-	"github.com/EducationEKT/EKT/ektclient"
-	"github.com/EducationEKT/EKT/encapdb"
 	"math"
 	"sync"
 	"time"
@@ -12,6 +10,8 @@ import (
 	"github.com/EducationEKT/EKT/conf"
 	"github.com/EducationEKT/EKT/core/types"
 	"github.com/EducationEKT/EKT/ctxlog"
+	"github.com/EducationEKT/EKT/ektclient"
+	"github.com/EducationEKT/EKT/encapdb"
 	"github.com/EducationEKT/EKT/log"
 	"github.com/EducationEKT/EKT/param"
 )

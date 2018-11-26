@@ -55,8 +55,6 @@ func (vmContract VMContract) Data() []byte {
 func (vmContract VMContract) Call(tx userevent.Transaction) (*userevent.TransactionReceipt, []byte) {
 	vmContract.VM.Set("data", tx.Data)
 	vmContract.VM.Set("additional", tx.Additional)
-	tx.Data = ""
-	tx.Additional = ""
 	vmContract.VM.Set("tx", string(tx.Bytes()))
 	call := `
 		var transaction = JSON.parse(tx);

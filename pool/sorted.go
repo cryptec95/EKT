@@ -18,6 +18,10 @@ func (list *NonceList) Insert(nonce int64) {
 		*list = append(*list, nonce)
 		return
 	}
+	if nonce > (*list)[len(*list)-1] {
+		*list = append(*list, nonce)
+		return
+	}
 	newList := make([]int64, 0)
 	for i, n := range *list {
 		if n < nonce {
@@ -45,6 +49,7 @@ type UserTxs struct {
 	Txs    map[int64]*userevent.Transaction `json:"txs"`
 	Nonces *NonceList                       `json:"nonces"`
 	Nonce  int64                            `json:"nonce"`
+	Index  int                              `json:"index"`
 }
 
 func NewUserTxs(nonce int64) *UserTxs {
@@ -52,6 +57,7 @@ func NewUserTxs(nonce int64) *UserTxs {
 		Txs:    make(map[int64]*userevent.Transaction),
 		Nonces: NewNonceList(),
 		Nonce:  nonce,
+		Index:  -1,
 	}
 }
 
@@ -69,19 +75,47 @@ func (sorted *UserTxs) Save(tx *userevent.Transaction) ([]*userevent.Transaction
 			for i := 0; i < len(*sorted.Nonces); i++ {
 				if (*sorted.Nonces)[i] == lastNonce+1 {
 					lastNonce++
-					tx := sorted.Txs[lastNonce]
-					list = append(list, tx)
+					_tx := sorted.Txs[lastNonce]
+					list = append(list, _tx)
 				}
 			}
 			sorted.Nonce = lastNonce
-			sorted.clearNonces()
+			sorted.getIndex()
+			//sorted.clearNonces()
+			//sorted.Notify(lastNonce)
 			return list, true
 		}
 	}
 	return nil, false
 }
 
+func (sorted *UserTxs) getIndex() {
+	for i := 0; i < len(*sorted.Nonces); i++ {
+		nonce := (*sorted.Nonces)[i]
+		if nonce == sorted.Nonce {
+			sorted.Index = i
+			return
+		}
+	}
+	sorted.Index = -1
+
+}
+
 func (sorted *UserTxs) clearNonces() {
+	newNonces := NewNonceList()
+	for i := 0; i < len(*sorted.Nonces); i++ {
+		nonce := (*sorted.Nonces)[i]
+		if nonce > sorted.Nonce {
+			newNonces.Insert(nonce)
+		} else {
+			delete(sorted.Txs, nonce)
+		}
+	}
+	sorted.Nonces = newNonces
+}
+
+func (sorted *UserTxs) Notify(nonce int64) {
+	sorted.Nonce = nonce
 	newNonces := NewNonceList()
 	for i := 0; i < len(*sorted.Nonces); i++ {
 		nonce := (*sorted.Nonces)[i]
@@ -105,21 +139,26 @@ func (sorted *UserTxs) Remove(tx userevent.Transaction) {
 }
 
 type UsersTxs struct {
-	m      map[string]*UserTxs
+	M      map[string]*UserTxs `json:"m"`
 	locker sync.RWMutex
 }
 
 func NewUsersTxs() *UsersTxs {
 	return &UsersTxs{
-		m:      make(map[string]*UserTxs),
+		M:      make(map[string]*UserTxs),
 		locker: sync.RWMutex{},
 	}
+}
+
+func (m *UserTxs) Promote(address []byte, nonce int64) ([]*userevent.Transaction, bool) {
+	m.Nonce = nonce
+	return nil, false
 }
 
 func (m *UsersTxs) SaveTx(tx *userevent.Transaction, userNonce int64) ([]*userevent.Transaction, bool) {
 	m.locker.Lock()
 	defer m.locker.Unlock()
-	userTxs := m.m[hex.EncodeToString(tx.From)]
+	userTxs := m.M[hex.EncodeToString(tx.From)]
 	if userTxs == nil {
 		userTxs = NewUserTxs(userNonce)
 	}
@@ -127,16 +166,18 @@ func (m *UsersTxs) SaveTx(tx *userevent.Transaction, userNonce int64) ([]*userev
 		return nil, false
 	}
 	txs, ready := userTxs.Save(tx)
-	m.m[hex.EncodeToString(tx.From)] = userTxs
+	m.M[hex.EncodeToString(tx.From)] = userTxs
 	return txs, ready
 }
 
-func (m *UsersTxs) Notify(tx userevent.Transaction) {
+func (m *UsersTxs) Notify(tx userevent.Transaction) ([]*userevent.Transaction, bool) {
 	m.locker.Lock()
 	defer m.locker.Unlock()
-	userTxs := m.m[hex.EncodeToString(tx.From)]
+	userTxs := m.M[hex.EncodeToString(tx.From)]
 	if userTxs != nil {
-		userTxs.Nonce = tx.Nonce
-		userTxs.clearNonces()
+		userTxs.Notify(tx.Nonce)
+		//userTxs.Nonce = tx.Nonce
+		//userTxs.clearNonces()
 	}
+	return nil, false
 }

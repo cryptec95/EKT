@@ -1,52 +1,72 @@
 package pool
 
 import (
+	"bytes"
 	"encoding/hex"
+	"github.com/EducationEKT/EKT/MPTPlus"
+	"github.com/EducationEKT/EKT/core/types"
 	"github.com/EducationEKT/EKT/core/userevent"
 )
 
 type TxPool struct {
-	all      *TransactionDict
-	list     *TxTimedList
-	usersTxs *UsersTxs
+	All      *TransactionDict `json:"All"`
+	List     *TxTimedList     `json:"timedList"`
+	UsersTxs *UsersTxs        `json:"userTxs"`
 }
 
 func NewTxPool() *TxPool {
 	pool := &TxPool{
-		all:      NewTransactionDict(),
-		list:     NewTimedList(),
-		usersTxs: NewUsersTxs(),
+		All:      NewTransactionDict(),
+		List:     NewTimedList(),
+		UsersTxs: NewUsersTxs(),
 	}
 
 	return pool
 }
 
 func (pool *TxPool) Park(tx *userevent.Transaction, userNonce int64) {
-	if pool.all.Get(tx.TransactionId()) == nil {
-		pool.all.Save(tx)
-		if txs, ready := pool.usersTxs.SaveTx(tx, userNonce); ready {
-			pool.list.Put(txs...)
+	if pool.All.Get(tx.TransactionId()) == nil {
+		pool.All.Save(tx)
+		if txs, ready := pool.UsersTxs.SaveTx(tx, userNonce); ready {
+			pool.List.Put(txs...)
 		}
 	}
 }
 
 func (pool *TxPool) GetTx(hash []byte) *userevent.Transaction {
-	return pool.all.Get(hex.EncodeToString(hash))
+	return pool.All.Get(hex.EncodeToString(hash))
 }
 
 func (pool *TxPool) Pop(size int) []*userevent.Transaction {
-	txs := pool.list.Pop(size)
+	txs := pool.List.Pop(size)
 	return txs
 }
 
 func (pool *TxPool) Notify(txs []userevent.Transaction) {
 	for _, tx := range txs {
-		pool.all.Delete(tx.TransactionId())
-		pool.usersTxs.Notify(tx)
-		pool.list.Notify(tx)
+		pool.All.Delete(tx.TransactionId())
+		pool.UsersTxs.Notify(tx)
+		pool.List.Notify(tx)
 	}
 }
 
 func (pool *TxPool) GetUserTxs(address string) *UserTxs {
-	return pool.usersTxs.m[address]
+	pool.UsersTxs.locker.RLock()
+	result := pool.UsersTxs.M[address]
+	pool.UsersTxs.locker.RUnlock()
+	return result
+}
+
+func (pool *TxPool) Promote(statdb MPTPlus.MTP) {
+	pool.UsersTxs.locker.Lock()
+	for addr, userTxs := range pool.UsersTxs.M {
+		var account types.Account
+		address, _ := hex.DecodeString(addr)
+		err := statdb.GetInterfaceValue(address, &account)
+		if err == nil && bytes.EqualFold(address, account.Address) {
+			userTxs.Promote(address, account.Nonce)
+		}
+		pool.UsersTxs.M[addr] = userTxs
+	}
+	pool.UsersTxs.locker.Unlock()
 }
