@@ -43,6 +43,9 @@ func Call(arg string) string {
 }
 
 func call(param GoMobileParam) string {
+	defer func() {
+		recover()
+	}()
 	switch param.Method {
 	case "CreateAccount":
 		return createAccount()
