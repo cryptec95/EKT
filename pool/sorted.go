@@ -80,7 +80,7 @@ func (sorted *UserTxs) Save(tx *userevent.Transaction) ([]*userevent.Transaction
 				}
 			}
 			sorted.Nonce = lastNonce
-			sorted.getIndex()
+			sorted.updateIndex()
 			//sorted.clearNonces()
 			//sorted.Notify(lastNonce)
 			return list, true
@@ -89,7 +89,7 @@ func (sorted *UserTxs) Save(tx *userevent.Transaction) ([]*userevent.Transaction
 	return nil, false
 }
 
-func (sorted *UserTxs) getIndex() {
+func (sorted *UserTxs) updateIndex() {
 	for i := 0; i < len(*sorted.Nonces); i++ {
 		nonce := (*sorted.Nonces)[i]
 		if nonce == sorted.Nonce {
@@ -98,7 +98,6 @@ func (sorted *UserTxs) getIndex() {
 		}
 	}
 	sorted.Index = -1
-
 }
 
 func (sorted *UserTxs) clearNonces() {
