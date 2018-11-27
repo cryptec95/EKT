@@ -1,20 +1,53 @@
 package types
 
 import (
+	"bytes"
 	"encoding/json"
+	"fmt"
 )
 
 // Contract address contains 64 bytes
 // The first 32 byte represents the founders of contract, it is create by system if the first
 // The end 32 byte represents the true address of contract for a founder
-
-type ContractData struct {
-	Prop     string `json:"prop"`
-	Contract string `json:"contract"`
+type ContractProp struct {
+	Name       string `json:"name"`
+	Author     string `json:"author"`
+	Upgradable bool   `json:"upgradable"`
 }
 
-func (data ContractData) Bytes() []byte {
-	result, _ := json.Marshal(data)
+func (contractProp *ContractProp) UnmarshalJSON(data []byte) error {
+	data = bytes.Trim(data, `"`)
+	var _contractProp ContractProp
+	err := json.Unmarshal(data, &_contractProp)
+	*contractProp = _contractProp
+	return err
+}
+
+func (contractProp *ContractProp) MarshalJSON() ([]byte, error) {
+	data, err := json.Marshal(contractProp)
+	return []byte(fmt.Sprintf(`"%s"`, string(data))), err
+}
+
+type ContractData struct {
+	Prop     ContractProp `json:"prop"`
+	Contract string       `json:"contract"`
+}
+
+func (contractData *ContractData) UnmarshalJSON(data []byte) error {
+	data = bytes.Trim(data, `"`)
+	var _contractData ContractData
+	err := json.Unmarshal(data, &_contractData)
+	*contractData = _contractData
+	return err
+}
+
+func (contractData *ContractData) MarshalJSON() ([]byte, error) {
+	data, err := json.Marshal(contractData)
+	return []byte(fmt.Sprintf(`"%s"`, string(data))), err
+}
+
+func (contractData ContractData) Bytes() []byte {
+	result, _ := json.Marshal(contractData)
 	return result
 }
 
@@ -23,7 +56,7 @@ type ContractAccount struct {
 	Amount       int64            `json:"amount"`
 	Gas          int64            `json:"gas"`
 	CodeHash     HexBytes         `json:"codeHash"`
-	ContractData []byte           `json:"data"`
+	ContractData ContractData     `json:"data"`
 	Balances     map[string]int64 `json:"balances"`
 }
 
@@ -34,7 +67,7 @@ func NewContractAccount(address []byte, contractHash []byte, contractData Contra
 		Gas:          0,
 		Balances:     make(map[string]int64),
 		CodeHash:     contractHash,
-		ContractData: contractData.Bytes(),
+		ContractData: contractData,
 	}
 }
 

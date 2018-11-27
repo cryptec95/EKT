@@ -21,6 +21,7 @@ const (
 	FailType_INIT_CONTRACT_ACCOUNT_FAIL
 	FailType_CHECK_CONTRACT_SUBTX_ERROR
 	FailType_CONTRACT_TIMEOUT
+	FailType_CONTRACT_UPGRADE_REFUSED
 )
 
 type Transactions []Transaction
