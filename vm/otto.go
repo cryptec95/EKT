@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/EducationEKT/EKT/core/types"
+	"github.com/EducationEKT/EKT/core/userevent"
 	"github.com/EducationEKT/EKT/crypto"
 	"github.com/EducationEKT/EKT/util"
 	"github.com/EducationEKT/EKT/vm/file"
@@ -39,6 +40,48 @@ func NewContractData(contractData *types.ContractData, err error) *ContractData 
 		contractData: contractData,
 		err:          err,
 	}
+}
+
+// TOOD  call with timeout
+func (otto *Otto) ContractCall(tx userevent.Transaction, timeout time.Duration) ([]userevent.SubTransaction, []byte, error) {
+	otto.Set("data", tx.Data)
+	otto.Set("additional", tx.Additional)
+	otto.Set("tx", string(tx.Bytes()))
+	_, err := otto.Run(`
+		var transaction = JSON.parse(tx);
+		var result = call();
+		var txs = "[]";
+		if (result !== undefined && result !== null) {
+			txs = JSON.stringify(result);
+		}
+	`)
+	if err != nil {
+		return nil, nil, err
+	}
+	value, err := otto.Get("txs")
+	if err != nil {
+		return nil, nil, err
+	}
+	var subTxs []userevent.SubTransaction
+	err = json.Unmarshal([]byte(value.String()), &subTxs)
+	if err != nil {
+		return nil, nil, err
+	}
+	return subTxs, otto.contractData(), nil
+}
+
+func (otto *Otto) contractData() []byte {
+	_, err := otto.Run(`
+		var data = JSON.stringify(contract);
+	`)
+	if err != nil {
+		return nil
+	}
+	value, err := otto.Get("data")
+	if err != nil {
+		return nil
+	}
+	return []byte(value.String())
 }
 
 func (otto *Otto) UpgradeContract(code []byte, contractData *types.ContractData, timeout time.Duration) (*types.ContractData, error) {
