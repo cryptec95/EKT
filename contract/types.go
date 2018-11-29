@@ -90,11 +90,7 @@ func getContract(ctx *context.Sticker, address []byte, account *types.Account) I
 		case EKT_GAS_BANCOR_CONTRACT:
 			b := bancor.NewBancor(EKT_GAS_PARAM_CW, math.Pow10(types.EKT_DECIMAL), EKT_GAS_PARAM_INIT_SMART_TOKEN, EKT_GAS_PARAM_TOTAL_SMART_TOKEN, types.EKTAddress, types.GasAddress)
 			contractAccount := account.Contracts[hex.EncodeToString(subAddress)]
-			if len(contractAccount.ContractData) > 0 {
-				var contractData types.ContractData
-				json.Unmarshal(contractAccount.ContractData, &contractData)
-				b.Recover([]byte(contractData.Contract))
-			}
+			b.Recover([]byte(contractAccount.ContractData.Contract))
 			return b
 		default:
 		}
@@ -115,9 +111,7 @@ func getContract(ctx *context.Sticker, address []byte, account *types.Account) I
 			if err != nil {
 				return nil
 			}
-			var contractData types.ContractData
-			json.Unmarshal(contractAccount.ContractData, &contractData)
-			if !vmContract.Recover([]byte(contractData.Contract)) {
+			if !vmContract.Recover([]byte(contractAccount.ContractData.Contract)) {
 				return nil
 			}
 			return vmContract
