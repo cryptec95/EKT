@@ -31,7 +31,7 @@ func GetHeaderByHeight(chainId, height int64) *blockchain.Header {
 }
 
 func SetHeaderByHeight(chainId, height int64, header blockchain.Header) error {
-	hash := header.CaculateHash()
+	hash := header.CalculateHash()
 	db.GetDBInst().Set(hash, header.Bytes())
 	key := schema.GetHeaderByHeightKey(chainId, height)
 	return db.GetDBInst().Set(key, hash)
@@ -56,6 +56,6 @@ func GetLastHeader(chainId int64) *blockchain.Header {
 
 func SetLastHeader(chainId int64, header blockchain.Header) error {
 	key := schema.LastHeaderKey(chainId)
-	db.GetDBInst().Set(header.CaculateHash(), header.Bytes())
-	return db.GetDBInst().Set(key, header.CaculateHash())
+	db.GetDBInst().Set(header.CalculateHash(), header.Bytes())
+	return db.GetDBInst().Set(key, header.CalculateHash())
 }
