@@ -168,8 +168,8 @@ func (client Client) GetAccountNonce(address string) int64 {
 		if resp.Result != nil {
 			fnonce, ok := resp.Result.(float64)
 			if ok {
-				str := strconv.FormatFloat(fnonce,'f', 0, 64)
-				nonce,_ := strconv.ParseInt(str,10,64)
+				str := strconv.FormatFloat(fnonce, 'f', 0, 64)
+				nonce, _ := strconv.ParseInt(str, 10, 64)
 				return nonce
 			}
 		}

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 
 	"github.com/EducationEKT/EKT/MPTPlus"
 	"github.com/EducationEKT/EKT/core/types"
@@ -16,6 +17,7 @@ import (
 const (
 	HEADER_VERSION_PURE_MTP = 0
 	HEADER_VERSION_MIXED    = 1
+	HEADER_VERSION_TOPIC    = 2
 )
 
 type Header struct {
@@ -27,8 +29,14 @@ type Header struct {
 	StatTree     *MPTPlus.MTP   `json:"statRoot"`
 	TokenTree    *MPTPlus.MTP   `json:"tokenRoot"`
 	TxHash       types.HexBytes `json:"txHash"`
+	TxRoot       *MPTPlus.MTP   `json:"txRoot"`
 	ReceiptHash  types.HexBytes `json:"receiptHash"`
-	Version      int            `json:"version"`
+	ReceiptRoot  *MPTPlus.MTP   `json:"receiptRoot"`
+
+	ChainStat  *MPTPlus.MTP `json:"chainStat"`
+	ChainEvent *MPTPlus.MTP `json:"chainEvent"`
+
+	Version int `json:"version"`
 }
 
 func (header *Header) Bytes() []byte {
@@ -36,8 +44,15 @@ func (header *Header) Bytes() []byte {
 	return data
 }
 
-func (header *Header) CaculateHash() []byte {
-	return crypto.Sha3_256(header.Bytes())
+func (header *Header) CalculateHash() []byte {
+	if header.Version == HEADER_VERSION_MIXED {
+		data := fmt.Sprintf(`{"height":%d,"timestamp":%d,"totalFee":%d,"previousHash":"%s","miner":"%s","statRoot":"%s","tokenRoot":"%s","txHash":"%s","receiptHash":"%s","version":%d}`,
+			header.Height, header.Timestamp, header.TotalFee, hex.EncodeToString(header.PreviousHash), hex.EncodeToString(header.Coinbase), hex.EncodeToString(header.StatTree.Root),
+			hex.EncodeToString(header.TokenTree.Root), hex.EncodeToString(header.TxHash), hex.EncodeToString(header.ReceiptHash), header.Version)
+		return crypto.Sha3_256([]byte(data))
+	} else {
+		return crypto.Sha3_256(header.Bytes())
+	}
 }
 
 func (header Header) GetAccount(address []byte) (*types.Account, error) {
@@ -254,11 +269,7 @@ func (header *Header) CheckFromAndBurnGas(tx userevent.Transaction) bool {
 	}
 	account, err := header.GetAccount(tx.GetFrom())
 	if err != nil || account == nil {
-		if tx.GetNonce() != 1 {
-			return false
-		} else {
-			account = types.NewAccount(tx.From)
-		}
+		account = types.NewAccount(tx.From)
 	}
 	if account.Gas < tx.Fee || account.GetNonce()+1 != tx.GetNonce() {
 		return false

@@ -7,6 +7,7 @@ import (
 	"github.com/EducationEKT/EKT/core/types"
 	"github.com/EducationEKT/EKT/core/userevent"
 	"github.com/EducationEKT/EKT/ctxlog"
+	"github.com/EducationEKT/EKT/db"
 	"github.com/EducationEKT/EKT/log"
 	"github.com/EducationEKT/EKT/pool"
 )
@@ -113,6 +114,8 @@ func (chain *BlockChain) ValidateBlock(next Block) bool {
 		if chain.Pool.GetTx(tx.TxId()) == nil {
 			if !userevent.ValidateTransaction(tx) {
 				return false
+			} else {
+				logErr(db.GetDBInst().Set(tx.TxId(), tx.Bytes()))
 			}
 		}
 		receipt := newBlock.NewTransaction(tx)
@@ -120,7 +123,7 @@ func (chain *BlockChain) ValidateBlock(next Block) bool {
 		newBlock.TransactionReceipts = append(newBlock.TransactionReceipts, *receipt)
 	}
 	newBlock.Finish()
-	if !bytes.EqualFold(newBlock.GetHeader().CaculateHash(), next.Hash) {
+	if !bytes.EqualFold(newBlock.GetHeader().CalculateHash(), next.Hash) {
 		return false
 	}
 	return true
