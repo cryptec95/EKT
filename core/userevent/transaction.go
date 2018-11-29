@@ -41,6 +41,48 @@ type Transaction struct {
 	Additional string `json:"additional"`
 }
 
+type TransactionCore struct {
+	From         types.HexBytes `json:"from"`
+	To           types.HexBytes `json:"to"`
+	Amount       int64          `json:"amount"`
+	Fee          int64          `json:"fee"`
+	Nonce        int64          `json:"nonce"`
+	Data         string         `json:"data"`
+	TokenAddress string         `json:"tokenAddress"`
+}
+
+type Transaction_V1 struct {
+	From         types.HexBytes `json:"from"`
+	To           types.HexBytes `json:"to"`
+	TimeStamp    int64          `json:"time"` // UnixTimeStamp
+	Amount       int64          `json:"amount"`
+	Fee          int64          `json:"fee"`
+	Nonce        int64          `json:"nonce"`
+	Data         string         `json:"data"`
+	TokenAddress string         `json:"tokenAddress"`
+	Sign         types.HexBytes `json:"sign"`
+}
+
+type Transaction_V2 struct {
+	From         types.HexBytes `json:"from"`
+	To           types.HexBytes `json:"to"`
+	TimeStamp    int64          `json:"time"` // UnixTimeStamp
+	Amount       int64          `json:"amount"`
+	Fee          int64          `json:"fee"`
+	Nonce        int64          `json:"nonce"`
+	Data         string         `json:"data"`
+	TokenAddress string         `json:"tokenAddress"`
+	Sign         types.HexBytes `json:"sign"`
+
+	Additional string `json:"additional"`
+}
+
+type Transaction_V3 struct {
+	txData     TransactionCore `json:"txData"`
+	Sign       types.HexBytes  `json:"sign"`
+	Additional string          `json:"additional"`
+}
+
 type SubTransaction struct {
 	Parent       types.HexBytes `json:"parent"`
 	From         types.HexBytes `json:"from"`
