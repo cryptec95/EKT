@@ -39,6 +39,22 @@ type Header struct {
 	Version int `json:"version"`
 }
 
+func (header Header) Equal(peerHeader Header) bool {
+	if header.Version != peerHeader.Version {
+		return false
+	}
+	if header.Version == HEADER_VERSION_MIXED {
+		return header.Height == peerHeader.Height &&
+			header.Timestamp == peerHeader.Timestamp &&
+			header.TotalFee == peerHeader.TotalFee &&
+			bytes.EqualFold(header.PreviousHash, peerHeader.PreviousHash) &&
+			bytes.EqualFold(header.Coinbase, peerHeader.Coinbase) &&
+			bytes.EqualFold(header.TokenTree.Root, peerHeader.TokenTree.Root) &&
+			bytes.EqualFold(header.StatTree.Root, peerHeader.StatTree.Root)
+	}
+	return bytes.EqualFold(header.CalculateHash(), peerHeader.CalculateHash())
+}
+
 func (header *Header) Bytes() []byte {
 	data, _ := json.Marshal(header)
 	return data
