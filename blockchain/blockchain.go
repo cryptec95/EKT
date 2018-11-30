@@ -1,7 +1,6 @@
 package blockchain
 
 import (
-	"bytes"
 	"time"
 
 	"github.com/EducationEKT/EKT/core/types"
@@ -123,8 +122,5 @@ func (chain *BlockChain) ValidateBlock(next Block) bool {
 		newBlock.TransactionReceipts = append(newBlock.TransactionReceipts, *receipt)
 	}
 	newBlock.Finish()
-	if !bytes.EqualFold(newBlock.GetHeader().CalculateHash(), next.Hash) {
-		return false
-	}
-	return true
+	return newBlock.GetHeader().Equal(*next.GetHeader())
 }
