@@ -59,7 +59,7 @@ func (dbft DbftConsensus) BlockFromPeer(clog *ctxlog.ContextLog, block *blockcha
 		return
 	}
 
-	status := dbft.BlockManager.GetBlockStatus(header.CaculateHash())
+	status := dbft.BlockManager.GetBlockStatus(header.CalculateHash())
 	clog.Log("status", status)
 	if status == blockchain.BLOCK_SAVED ||
 		(status > blockchain.BLOCK_ERROR_START && status < blockchain.BLOCK_ERROR_END) ||
@@ -75,7 +75,7 @@ func (dbft DbftConsensus) BlockFromPeer(clog *ctxlog.ContextLog, block *blockcha
 		}
 		if dbft.SendVote(*header) {
 			dbft.BlockManager.SetVoteTime(block.GetHeader().Height, time.Now().UnixNano()/1e6)
-			dbft.BlockManager.SetBlockStatus(header.CaculateHash(), blockchain.BLOCK_VOTED)
+			dbft.BlockManager.SetBlockStatus(header.CalculateHash(), blockchain.BLOCK_VOTED)
 			clog.Log("SendVote", true)
 		}
 		return
@@ -96,12 +96,12 @@ func (dbft DbftConsensus) BlockFromPeer(clog *ctxlog.ContextLog, block *blockcha
 	if dbft.Blockchain.ValidateBlock(*block) {
 		if dbft.SendVote(*header) {
 			dbft.BlockManager.SetVoteTime(block.GetHeader().Height, time.Now().UnixNano()/1e6)
-			dbft.BlockManager.SetBlockStatus(header.CaculateHash(), blockchain.BLOCK_VOTED)
+			dbft.BlockManager.SetBlockStatus(header.CalculateHash(), blockchain.BLOCK_VOTED)
 			clog.Log("SendVote", true)
 		}
 	} else {
 		clog.Log("error body", true)
-		dbft.BlockManager.SetBlockStatus(header.CaculateHash(), blockchain.BLOCK_ERROR_BODY)
+		dbft.BlockManager.SetBlockStatus(header.CalculateHash(), blockchain.BLOCK_ERROR_BODY)
 	}
 }
 
@@ -135,7 +135,7 @@ func (dbft DbftConsensus) SendVote(header blockchain.Header) bool {
 	vote := &blockchain.PeerBlockVote{
 		Vote: blockchain.BlockVoteDetail{
 			BlockchainId: dbft.Blockchain.ChainId,
-			BlockHash:    header.CaculateHash(),
+			BlockHash:    header.CalculateHash(),
 			BlockHeight:  header.Height,
 			VoteResult:   true,
 		},
@@ -306,9 +306,9 @@ func (dbft DbftConsensus) SyncHeight(height int64) bool {
 		log.Info("Get header by hash failed, hash = %s", hex.EncodeToString(block.Hash))
 		return false
 	} else {
-		votes := dbft.Client.GetVotesByBlockHash(hex.EncodeToString(block.GetHeader().CaculateHash()))
+		votes := dbft.Client.GetVotesByBlockHash(hex.EncodeToString(block.Hash))
 		if votes == nil || !votes.Validate() {
-			log.Info("Get votes by hash failed.")
+			log.Info("Get votes by hash failed. %d", len(votes))
 			return false
 		}
 		if dbft.Blockchain.ValidateBlock(*block) {

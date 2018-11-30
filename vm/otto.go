@@ -1,15 +1,24 @@
 package vm
 
 import (
+	"encoding/json"
+	"errors"
 	"fmt"
 	"math/rand"
 	"strconv"
 	"strings"
+	"time"
 
+	"github.com/EducationEKT/EKT/core/types"
+	"github.com/EducationEKT/EKT/core/userevent"
 	"github.com/EducationEKT/EKT/crypto"
 	"github.com/EducationEKT/EKT/util"
 	"github.com/EducationEKT/EKT/vm/file"
 	"github.com/EducationEKT/EKT/vm/registry"
+)
+
+var (
+	TIMEOUT_ERROR = errors.New("vm call error: out of time")
 )
 
 // Otto is the representation of the JavaScript runtime. Each instance of Otto has a self-contained namespace.
@@ -19,6 +28,144 @@ type Otto struct {
 	Interrupt chan func()
 	runtime   *_runtime
 	rc        int // random count
+}
+
+type ContractData struct {
+	contractData *types.ContractData
+	err          error
+}
+
+func NewContractData(contractData *types.ContractData, err error) *ContractData {
+	return &ContractData{
+		contractData: contractData,
+		err:          err,
+	}
+}
+
+// TOOD  call with timeout
+func (otto *Otto) ContractCall(tx userevent.Transaction, timeout time.Duration) ([]userevent.SubTransaction, []byte, error) {
+	otto.Set("data", tx.Data)
+	otto.Set("additional", tx.Additional)
+	otto.Set("tx", string(tx.Bytes()))
+	_, err := otto.Run(`
+		var transaction = JSON.parse(tx);
+		var result = call();
+		var txs = "[]";
+		if (result !== undefined && result !== null) {
+			txs = JSON.stringify(result);
+		}
+	`)
+	if err != nil {
+		return nil, nil, err
+	}
+	value, err := otto.Get("txs")
+	if err != nil {
+		return nil, nil, err
+	}
+	var subTxs []userevent.SubTransaction
+	err = json.Unmarshal([]byte(value.String()), &subTxs)
+	if err != nil {
+		return nil, nil, err
+	}
+	return subTxs, otto.contractData(), nil
+}
+
+func (otto *Otto) contractData() []byte {
+	_, err := otto.Run(`
+		var data = JSON.stringify(contract);
+	`)
+	if err != nil {
+		return nil
+	}
+	value, err := otto.Get("data")
+	if err != nil {
+		return nil
+	}
+	return []byte(value.String())
+}
+
+func (otto *Otto) UpgradeContract(code []byte, contractData *types.ContractData, timeout time.Duration) (*types.ContractData, error) {
+	ch := make(chan *ContractData)
+	go otto.upgradeContract(code, contractData, ch)
+	for {
+		select {
+		case <-time.After(timeout):
+			return nil, TIMEOUT_ERROR
+		case result := <-ch:
+			return result.contractData, result.err
+		}
+	}
+}
+
+func (otto *Otto) InitContractWithTimeout(code []byte, timeout time.Duration) (*types.ContractData, error) {
+	ch := make(chan *ContractData)
+	go otto.initContract(code, ch)
+	for {
+		select {
+		case <-time.After(timeout):
+			return nil, TIMEOUT_ERROR
+		case result := <-ch:
+			return result.contractData, result.err
+		}
+	}
+}
+
+func (otto *Otto) upgradeContract(code []byte, data *types.ContractData, ch chan *ContractData) {
+	_, err := otto.Run(string(code))
+	if err != nil {
+		ch <- NewContractData(nil, err)
+	}
+	if otto.Set("propOld", data.Prop) != nil || otto.Set("contractOldStr", data.Contract) != nil {
+		ch <- NewContractData(nil, err)
+	}
+	_, err = otto.Run(`
+		init();
+		var contractOld = JSON.parse(contractOldStr);
+
+		upgrade();
+	`)
+	if err != nil {
+		ch <- NewContractData(nil, err)
+	}
+
+	_, err = otto.Run(`
+		var propStr = JSON.stringify(prop);
+		var contractStr = JSON.stringify(contract);
+		var contractData = JSON.stringify({ "prop": propStr, "contract": contractStr });
+	`)
+	if err != nil {
+		ch <- NewContractData(nil, err)
+	}
+
+	value, err := otto.Get("contractData")
+	if err != nil {
+		ch <- NewContractData(nil, err)
+	}
+	newData := []byte(value.string())
+	var contractData types.ContractData
+	err = json.Unmarshal(newData, &contractData)
+	ch <- NewContractData(&contractData, err)
+}
+
+func (otto *Otto) initContract(code []byte, ch chan *ContractData) {
+	_, err := otto.Run(string(code))
+	if err != nil {
+		ch <- NewContractData(nil, err)
+	}
+	_, err = otto.Run(`
+		init();
+		var propStr = JSON.stringify(prop);
+		var contractStr = JSON.stringify(contract);
+		var contractData = JSON.stringify({ "prop": propStr, "contract": contractStr });
+	`)
+	value, err := otto.Get("contractData")
+	if err != nil {
+		ch <- NewContractData(nil, err)
+	}
+	data := []byte(value.string())
+	var contractData types.ContractData
+	err = json.Unmarshal(data, &contractData)
+	ch <- NewContractData(&contractData, err)
 }
 
 func NewVM(lastHash []byte, timestamp int64) *Otto {
