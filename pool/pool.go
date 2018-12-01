@@ -63,7 +63,7 @@ func (pool *TxPool) Promote(statdb MPTPlus.MTP) {
 		var account types.Account
 		address, _ := hex.DecodeString(addr)
 		err := statdb.GetInterfaceValue(address, &account)
-		if err == nil && bytes.EqualFold(address, account.Address) {
+		if err == nil && bytes.Equal(address, account.Address) {
 			userTxs.Promote(address, account.Nonce)
 		}
 		pool.UsersTxs.M[addr] = userTxs

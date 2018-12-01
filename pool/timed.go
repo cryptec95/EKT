@@ -54,7 +54,7 @@ func (list *TxTimedList) Notify(tx userevent.Transaction) {
 	defer list.locker.Unlock()
 	if list.M[tx.TransactionId()] {
 		for i, _tx := range list.List {
-			if bytes.EqualFold(tx.TxId(), _tx.TxId()) {
+			if bytes.Equal(tx.TxId(), _tx.TxId()) {
 				list.List = append(list.List[:i], list.List[i+1:]...)
 				break
 			}

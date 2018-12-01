@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+
 	"github.com/EducationEKT/EKT/crypto"
 )
 
@@ -32,7 +33,7 @@ func (mtp *MTP) GetValueByKey(key []byte) (value []byte, err error) {
 	if err != nil {
 		return nil, err
 	}
-	if bytes.EqualFold(bytes.Join(prefixs, nil), key) {
+	if bytes.Equal(bytes.Join(prefixs, nil), key) {
 		leaf, err := mtp.GetNode(parentHashes[len(parentHashes)-1])
 		if err != nil {
 			return nil, err
@@ -50,7 +51,7 @@ func (mtp *MTP) ContainsKey(key []byte) bool {
 		return false
 	}
 	prefix := bytes.Join(prefixs, nil)
-	if bytes.EqualFold(prefix, key) {
+	if bytes.Equal(prefix, key) {
 		return true
 	}
 	return false
@@ -92,7 +93,7 @@ func (mtp *MTP) MustInsert(key, value []byte) error {
 		return err
 	}
 	// 包含key， 更新value
-	if bytes.EqualFold(bytes.Join(prefixs, nil), key) {
+	if bytes.Equal(bytes.Join(prefixs, nil), key) {
 		return mtp.Update(key, value, parentHashes, prefixs)
 	} else {
 		// 重新插入key和value

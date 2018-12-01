@@ -58,7 +58,7 @@ func (client Client) GetBlockByHeight(height int64) *blockchain.Block {
 func (client Client) GetHeaderByHash(hash []byte) *blockchain.Header {
 	for _, peer := range client.peers {
 		data, err := peer.GetDBValue(hex.EncodeToString(hash))
-		if err == nil && bytes.EqualFold(crypto.Sha3_256(data), hash) {
+		if err == nil && bytes.Equal(crypto.Sha3_256(data), hash) {
 			var header blockchain.Header
 			err := json.Unmarshal(data, &header)
 			if err == nil {
