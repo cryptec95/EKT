@@ -146,7 +146,7 @@ func ContractRefuseTx(tx Transaction) *TransactionReceipt {
 
 func (receipt1 TransactionReceipt) EqualsTo(receipt2 TransactionReceipt) bool {
 	return receipt1.Fee == receipt2.Fee && receipt1.Success == receipt2.Success &&
-		receipt1.FailType == receipt2.FailType && bytes.EqualFold(receipt1.TxId, receipt2.TxId)
+		receipt1.FailType == receipt2.FailType && bytes.Equal(receipt1.TxId, receipt2.TxId)
 }
 
 func (tx Transaction) GetNonce() int64 {

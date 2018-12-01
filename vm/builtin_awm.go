@@ -50,7 +50,7 @@ func builtinAWM_secp256k1_verify(call FunctionCall) Value {
 	if err != nil {
 		return toValue_bool(false)
 	}
-	return toValue_bool(bytes.EqualFold(types.FromPubKeyToAddress(pubKey), address_b))
+	return toValue_bool(bytes.Equal(types.FromPubKeyToAddress(pubKey), address_b))
 }
 
 func builtinAWM_Contract_Refuse_Tx(call FunctionCall) Value {

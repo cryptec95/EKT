@@ -7,7 +7,7 @@ import (
 )
 
 func ValidateTransaction(transaction Transaction) bool {
-	if bytes.EqualFold(transaction.GetFrom(), transaction.GetTo()) {
+	if bytes.Equal(transaction.GetFrom(), transaction.GetTo()) {
 		return false
 	}
 	if transaction.Amount < 0 {
@@ -17,7 +17,7 @@ func ValidateTransaction(transaction Transaction) bool {
 	if err != nil {
 		return false
 	}
-	result := bytes.EqualFold(types.FromPubKeyToAddress(pubKey), transaction.GetFrom())
+	result := bytes.Equal(types.FromPubKeyToAddress(pubKey), transaction.GetFrom())
 	return result
 }
 

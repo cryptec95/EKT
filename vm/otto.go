@@ -35,6 +35,20 @@ type ContractData struct {
 	err          error
 }
 
+type ContractCallResp struct {
+	txs  []userevent.SubTransaction
+	data []byte
+	err  error
+}
+
+func NewContractCallResp(txs []userevent.SubTransaction, data []byte, err error) *ContractCallResp {
+	return &ContractCallResp{
+		txs:  txs,
+		data: data,
+		err:  err,
+	}
+}
+
 func NewContractData(contractData *types.ContractData, err error) *ContractData {
 	return &ContractData{
 		contractData: contractData,
@@ -42,11 +56,24 @@ func NewContractData(contractData *types.ContractData, err error) *ContractData 
 	}
 }
 
-// TOOD  call with timeout
 func (otto *Otto) ContractCall(tx userevent.Transaction, timeout time.Duration) ([]userevent.SubTransaction, []byte, error) {
+	ch := make(chan *ContractCallResp)
+	go otto.contractCall(tx, ch)
+	for {
+		select {
+		case <-time.After(timeout):
+			return nil, nil, TIMEOUT_ERROR
+		case result := <-ch:
+			return result.txs, result.data, result.err
+		}
+	}
+}
+
+func (otto *Otto) contractCall(tx userevent.Transaction, ch chan *ContractCallResp) {
 	otto.Set("data", tx.Data)
 	otto.Set("additional", tx.Additional)
 	otto.Set("tx", string(tx.Bytes()))
+
 	_, err := otto.Run(`
 		var transaction = JSON.parse(tx);
 		var result = call();
@@ -55,19 +82,22 @@ func (otto *Otto) ContractCall(tx userevent.Transaction, timeout time.Duration) 
 			txs = JSON.stringify(result);
 		}
 	`)
+
 	if err != nil {
-		return nil, nil, err
+		ch <- NewContractCallResp(nil, nil, err)
 	}
+
 	value, err := otto.Get("txs")
 	if err != nil {
-		return nil, nil, err
+		ch <- NewContractCallResp(nil, nil, err)
 	}
+
 	var subTxs []userevent.SubTransaction
 	err = json.Unmarshal([]byte(value.String()), &subTxs)
 	if err != nil {
-		return nil, nil, err
+		ch <- NewContractCallResp(nil, nil, err)
 	}
-	return subTxs, otto.contractData(), nil
+	ch <- NewContractCallResp(subTxs, otto.contractData(), nil)
 }
 
 func (otto *Otto) contractData() []byte {

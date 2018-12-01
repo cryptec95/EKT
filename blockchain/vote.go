@@ -45,7 +45,7 @@ func NewVoteResults() VoteResults {
 }
 
 func (vote1 PeerBlockVote) Equal(vote2 PeerBlockVote) bool {
-	return vote1.Peer.Equal(vote2.Peer) && bytes.EqualFold(vote1.Vote.BlockHash, vote2.Vote.BlockHash)
+	return vote1.Peer.Equal(vote2.Peer) && bytes.Equal(vote1.Vote.BlockHash, vote2.Vote.BlockHash)
 }
 
 func (voteResults VoteResults) GetVoteResults(hash string) Votes {
