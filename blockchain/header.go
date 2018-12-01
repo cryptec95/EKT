@@ -47,12 +47,12 @@ func (header Header) Equal(peerHeader Header) bool {
 		return header.Height == peerHeader.Height &&
 			header.Timestamp == peerHeader.Timestamp &&
 			header.TotalFee == peerHeader.TotalFee &&
-			bytes.EqualFold(header.PreviousHash, peerHeader.PreviousHash) &&
-			bytes.EqualFold(header.Coinbase, peerHeader.Coinbase) &&
-			bytes.EqualFold(header.TokenTree.Root, peerHeader.TokenTree.Root) &&
-			bytes.EqualFold(header.StatTree.Root, peerHeader.StatTree.Root)
+			bytes.Equal(header.PreviousHash, peerHeader.PreviousHash) &&
+			bytes.Equal(header.Coinbase, peerHeader.Coinbase) &&
+			bytes.Equal(header.TokenTree.Root, peerHeader.TokenTree.Root) &&
+			bytes.Equal(header.StatTree.Root, peerHeader.StatTree.Root)
 	}
-	return bytes.EqualFold(header.CalculateHash(), peerHeader.CalculateHash())
+	return bytes.Equal(header.CalculateHash(), peerHeader.CalculateHash())
 }
 
 func (header *Header) Bytes() []byte {
@@ -239,7 +239,7 @@ func (header *Header) Transfer(from, to *types.Account, tx userevent.SubTransact
 }
 
 func (header *Header) CheckSubTx(from, to *types.Account, tx userevent.SubTransaction) bool {
-	if bytes.EqualFold(tx.From, tx.To) {
+	if bytes.Equal(tx.From, tx.To) {
 		return false
 	}
 	if len(tx.From) == 32 {
