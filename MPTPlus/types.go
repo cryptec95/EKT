@@ -105,7 +105,7 @@ func (node *TrieNode) AddSon(hash, pathValue []byte) {
 		node.Sons = *new(SortedSon)
 	}
 	for _, son := range node.Sons {
-		if bytes.EqualFold(son.PathValue, pathValue) {
+		if bytes.Equal(son.PathValue, pathValue) {
 			node.DeleteSon(pathValue)
 		}
 	}
@@ -118,7 +118,7 @@ func (node *TrieNode) DeleteSon(pathValue []byte) {
 		return
 	}
 	for i, son := range node.Sons {
-		if bytes.EqualFold(son.PathValue[:], pathValue) {
+		if bytes.Equal(son.PathValue[:], pathValue) {
 			node.Sons = append(node.Sons[:i], node.Sons[i+1:]...)
 		}
 	}
