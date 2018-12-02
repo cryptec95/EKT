@@ -308,7 +308,7 @@ func (dbft DbftConsensus) ForkSync(height int64) bool {
 	}
 
 	newBlock := blockchain.NewBlock_V2(dbft.Blockchain.LastHeader(), block.GetHeader().Timestamp, block.Miner)
-	data, _ := param.MainNet[0].GetDBValue(hex.EncodeToString(block.GetHeader().TxHash))
+	data := ektclient.NewClient(param.MainChainDelegateNode).GetValueByHash(block.GetHeader().TxHash)
 	var txs []userevent.Transaction
 	err := json.Unmarshal(data, &txs)
 	if err != nil && len(txs) > 0 {
