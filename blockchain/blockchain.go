@@ -7,6 +7,7 @@ import (
 	"github.com/EducationEKT/EKT/core/userevent"
 	"github.com/EducationEKT/EKT/ctxlog"
 	"github.com/EducationEKT/EKT/db"
+	"github.com/EducationEKT/EKT/encapdb"
 	"github.com/EducationEKT/EKT/log"
 	"github.com/EducationEKT/EKT/pool"
 )
@@ -68,6 +69,12 @@ func (chain *BlockChain) PackTransaction(clog *ctxlog.ContextLog, block *Block) 
 				}
 				for _, tx := range txs {
 					receipt := block.NewTransaction(*tx)
+					receiptDetail := userevent.ReceiptDetail{
+						Receipt:     *receipt,
+						BlockNumber: block.GetHeader().Height,
+						Index:       int64(numTx),
+					}
+					encapdb.SaveReceiptByTxHash(chain.ChainId, tx.TransactionId(), receiptDetail)
 					block.Transactions = append(block.Transactions, *tx)
 					block.TransactionReceipts = append(block.TransactionReceipts, *receipt)
 				}
