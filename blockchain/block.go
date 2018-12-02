@@ -311,3 +311,14 @@ func CreateBlock(last Header, time int64, peer types.Peer) *Block {
 		TransactionReceipts: make([]userevent.TransactionReceipt, 0),
 	}
 }
+
+func NewBlock_V2(last Header, time int64, peer types.Peer) *Block {
+	coinbase, _ := hex.DecodeString(peer.Account)
+	header := NewHeader_V2(last, time, last.CalculateHash(), coinbase)
+	return &Block{
+		Header:              header,
+		Miner:               peer,
+		Transactions:        make([]userevent.Transaction, 0),
+		TransactionReceipts: make([]userevent.TransactionReceipt, 0),
+	}
+}

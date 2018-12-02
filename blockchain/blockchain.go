@@ -7,9 +7,9 @@ import (
 	"github.com/EducationEKT/EKT/core/userevent"
 	"github.com/EducationEKT/EKT/ctxlog"
 	"github.com/EducationEKT/EKT/db"
-	"github.com/EducationEKT/EKT/encapdb"
 	"github.com/EducationEKT/EKT/log"
 	"github.com/EducationEKT/EKT/pool"
+	"github.com/EducationEKT/EKT/schema"
 )
 
 const (
@@ -74,7 +74,7 @@ func (chain *BlockChain) PackTransaction(clog *ctxlog.ContextLog, block *Block) 
 						BlockNumber: block.GetHeader().Height,
 						Index:       int64(numTx),
 					}
-					encapdb.SaveReceiptByTxHash(chain.ChainId, tx.TransactionId(), receiptDetail)
+					db.GetDBInst().Set(schema.GetReceiptByTxHashKey(chain.ChainId, tx.TransactionId()), receiptDetail.Bytes())
 					block.Transactions = append(block.Transactions, *tx)
 					block.TransactionReceipts = append(block.TransactionReceipts, *receipt)
 				}

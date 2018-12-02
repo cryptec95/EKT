@@ -17,7 +17,7 @@ import (
 const (
 	HEADER_VERSION_PURE_MTP = 0
 	HEADER_VERSION_MIXED    = 1
-	HEADER_VERSION_TOPIC    = 2
+	HEADER_VERSION_MERKLER  = 2
 )
 
 type Header struct {
@@ -116,6 +116,23 @@ func NewHeader(last Header, packTime int64, parentHash types.HexBytes, coinbase 
 		StatTree:     MPTPlus.MTP_Tree(db.GetDBInst(), last.StatTree.Root),
 		TokenTree:    MPTPlus.MTP_Tree(db.GetDBInst(), last.TokenTree.Root),
 		Version:      HEADER_VERSION_MIXED,
+	}
+
+	return header
+}
+
+func NewHeader_V2(last Header, packTime int64, parentHash types.HexBytes, coinbase types.HexBytes) *Header {
+	header := &Header{
+		Height:       last.Height + 1,
+		Timestamp:    packTime,
+		TotalFee:     0,
+		PreviousHash: parentHash,
+		Coinbase:     coinbase,
+		StatTree:     MPTPlus.MTP_Tree(db.GetDBInst(), last.StatTree.Root),
+		TokenTree:    MPTPlus.MTP_Tree(db.GetDBInst(), last.TokenTree.Root),
+		TxRoot:       MPTPlus.NewMTP(db.GetDBInst()),
+		ReceiptRoot:  MPTPlus.NewMTP(db.GetDBInst()),
+		Version:      HEADER_VERSION_MERKLER,
 	}
 
 	return header
