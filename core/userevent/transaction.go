@@ -238,3 +238,13 @@ func (tx Transaction) Bytes() []byte {
 	data, _ := json.Marshal(tx)
 	return data
 }
+
+func (receipt TransactionReceipt) ReceiptId() []byte {
+	data, _ := json.Marshal(receipt)
+	return crypto.Sha3_256(data)
+}
+
+func (receipt TransactionReceipt) Bytes() []byte {
+	data, _ := json.Marshal(receipt)
+	return data
+}
