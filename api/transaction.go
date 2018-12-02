@@ -2,8 +2,10 @@ package api
 
 import (
 	"encoding/json"
+
 	"github.com/EducationEKT/EKT/core/userevent"
 	"github.com/EducationEKT/EKT/db"
+	"github.com/EducationEKT/EKT/encapdb"
 	"github.com/EducationEKT/EKT/node"
 	"github.com/EducationEKT/xserver/x_err"
 	"github.com/EducationEKT/xserver/x_http/x_req"
@@ -15,6 +17,7 @@ func init() {
 	x_router.Get("/transaction/api/fee", fee)
 	x_router.Post("/transaction/api/newTransaction", broadcast, newTransaction)
 	x_router.Get("/transaction/api/userTxs", userTxs)
+	x_router.Get("/transaction/api/getReceiptByTxHash", getReceiptByTxHash)
 }
 
 func fee(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
@@ -39,4 +42,9 @@ func newTransaction(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
 		db.GetDBInst().Set(tx.TxId(), tx.Bytes())
 	}
 	return x_resp.Return(tx.TransactionId(), err)
+}
+
+func getReceiptByTxHash(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
+	hash := req.MustGetString("hash")
+	return x_resp.Return(encapdb.GetReceiptByTxHash(node.GetMainChain().ChainId, hash), nil)
 }

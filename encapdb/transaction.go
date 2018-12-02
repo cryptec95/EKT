@@ -2,6 +2,7 @@ package encapdb
 
 import (
 	"encoding/json"
+
 	"github.com/EducationEKT/EKT/core/userevent"
 	"github.com/EducationEKT/EKT/db"
 	"github.com/EducationEKT/EKT/schema"
