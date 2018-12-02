@@ -28,4 +28,6 @@ type IClient interface {
 	// account
 	GetAccountNonce(address string) int64
 	GetGenesisAccounts() []types.Account
+
+	GetValueByHash(hash []byte) []byte
 }
