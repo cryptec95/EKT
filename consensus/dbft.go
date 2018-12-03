@@ -311,7 +311,7 @@ func (dbft DbftConsensus) ForkSync(height int64) bool {
 	data := ektclient.NewClient(param.MainChainDelegateNode).GetValueByHash(block.GetHeader().TxHash)
 	var txs []userevent.Transaction
 	err := json.Unmarshal(data, &txs)
-	if err != nil && len(txs) > 0 {
+	if err == nil && len(txs) > 0 {
 		for _, tx := range txs {
 			receipt := newBlock.NewTransaction(tx)
 			newBlock.Transactions = append(newBlock.Transactions, tx)
