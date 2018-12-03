@@ -141,7 +141,7 @@ func (block *Block) ContractCall(tx userevent.Transaction) *userevent.Transactio
 		return &receipt
 	}
 	contractAccount := to.Contracts[hex.EncodeToString(toContractAddress)]
-	txs, data, err := _vm.ContractCall(tx, contract, string(contractAccount.ContractData), VM_CALL_TIMEOUT)
+	txs, data, err := _vm.ContractCall(tx, contract, string(contractAccount.ContractData.Contract), VM_CALL_TIMEOUT)
 	if err != nil {
 		return userevent.ContractRefuseTx(tx)
 	}
