@@ -2,6 +2,7 @@ package consensus
 
 import (
 	"encoding/hex"
+	"encoding/json"
 	"math"
 	"sync"
 	"time"
@@ -9,6 +10,7 @@ import (
 	"github.com/EducationEKT/EKT/blockchain"
 	"github.com/EducationEKT/EKT/conf"
 	"github.com/EducationEKT/EKT/core/types"
+	"github.com/EducationEKT/EKT/core/userevent"
 	"github.com/EducationEKT/EKT/ctxlog"
 	"github.com/EducationEKT/EKT/ektclient"
 	"github.com/EducationEKT/EKT/encapdb"
@@ -243,7 +245,7 @@ func (dbft DbftConsensus) Pack(packTime int64) {
 
 	lastHeader := dbft.Blockchain.LastHeader()
 	log.Debug("Packing block at height %d, current timestamp %d", lastHeader.Height, time.Now().UnixNano())
-	block := blockchain.CreateBlock(lastHeader, packTime, conf.EKTConfig.Node)
+	block := blockchain.NewBlock_V2(lastHeader, packTime, conf.EKTConfig.Node)
 	dbft.Blockchain.PackTransaction(clog, block)
 
 	// 增加打包信息
@@ -291,6 +293,42 @@ func AliveDelegatePeerCount(peers types.Peers, print bool) int {
 	return count
 }
 
+func (dbft DbftConsensus) ForkSync(height int64) bool {
+	if dbft.Blockchain.GetLastHeight() >= height {
+		return true
+	}
+	block := dbft.Client.GetBlockByHeight(height)
+	if block == nil {
+		log.Debug("Get block by height failed")
+		return false
+	}
+	if block.GetHeader().Height != height {
+		log.Info("Get header by hash failed, hash = %s", hex.EncodeToString(block.Hash))
+		return false
+	}
+
+	newBlock := blockchain.NewBlock_V2(dbft.Blockchain.LastHeader(), block.GetHeader().Timestamp, block.Miner)
+	data := ektclient.NewClient(param.MainChainDelegateNode).GetValueByHash(block.GetHeader().TxHash)
+	if data == nil {
+		return false
+	}
+	var txs []userevent.Transaction
+	err := json.Unmarshal(data, &txs)
+	if len(txs) > 0 {
+		for _, tx := range txs {
+			receipt := newBlock.NewTransaction(tx)
+			newBlock.Transactions = append(newBlock.Transactions, tx)
+			newBlock.TransactionReceipts = append(newBlock.TransactionReceipts, *receipt)
+		}
+	} else if err != nil {
+		return false
+	}
+	newBlock.Finish()
+	dbft.SaveBlock(newBlock, nil)
+
+	return true
+}
+
 // 根据height同步区块
 func (dbft DbftConsensus) SyncHeight(height int64) bool {
 	log.Info("Synchronizing block at height %d \n", height)
@@ -306,13 +344,8 @@ func (dbft DbftConsensus) SyncHeight(height int64) bool {
 		log.Info("Get header by hash failed, hash = %s", hex.EncodeToString(block.Hash))
 		return false
 	} else {
-		votes := dbft.Client.GetVotesByBlockHash(hex.EncodeToString(block.Hash))
-		if votes == nil || !votes.Validate() {
-			log.Info("Get votes by hash failed. %d", len(votes))
-			return false
-		}
 		if dbft.Blockchain.ValidateBlock(*block) {
-			dbft.SaveBlock(block, votes)
+			dbft.SaveBlock(block, nil)
 			return true
 		}
 	}
@@ -379,7 +412,7 @@ func (dbft DbftConsensus) SaveBlock(block *blockchain.Block, votes blockchain.Vo
 	encapdb.SetHeaderByHeight(dbft.Blockchain.ChainId, header.Height, header)
 	encapdb.SetLastHeader(dbft.Blockchain.ChainId, header)
 	dbft.Blockchain.SetLastHeader(header)
-	log.Debug("Saved block at height %d, block.Hash=%s, current timestamp is %d", header.Height, hex.EncodeToString(block.Hash), time.Now().UnixNano())
+	log.Debug("Saved block at height %d, block.Hash=%s, current timestamp is %d", header.Height, hex.EncodeToString(block.Hash), time.Now().UnixNano()/1e6)
 	dbft.Blockchain.NotifyPool(block.GetTransactions())
 }
 

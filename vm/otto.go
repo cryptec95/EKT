@@ -56,9 +56,9 @@ func NewContractData(contractData *types.ContractData, err error) *ContractData 
 	}
 }
 
-func (otto *Otto) ContractCall(tx userevent.Transaction, timeout time.Duration) ([]userevent.SubTransaction, []byte, error) {
+func (otto *Otto) ContractCall(tx userevent.Transaction, contract []byte, timeout time.Duration) ([]userevent.SubTransaction, []byte, error) {
 	ch := make(chan *ContractCallResp)
-	go otto.contractCall(tx, ch)
+	go otto.contractCall(tx, contract, ch)
 	for {
 		select {
 		case <-time.After(timeout):
@@ -69,7 +69,8 @@ func (otto *Otto) ContractCall(tx userevent.Transaction, timeout time.Duration) 
 	}
 }
 
-func (otto *Otto) contractCall(tx userevent.Transaction, ch chan *ContractCallResp) {
+func (otto *Otto) contractCall(tx userevent.Transaction, contract []byte, ch chan *ContractCallResp) {
+	otto.Run(string(contract))
 	otto.Set("data", tx.Data)
 	otto.Set("additional", tx.Additional)
 	otto.Set("tx", string(tx.Bytes()))
@@ -85,17 +86,20 @@ func (otto *Otto) contractCall(tx userevent.Transaction, ch chan *ContractCallRe
 
 	if err != nil {
 		ch <- NewContractCallResp(nil, nil, err)
+		return
 	}
 
 	value, err := otto.Get("txs")
 	if err != nil {
 		ch <- NewContractCallResp(nil, nil, err)
+		return
 	}
 
 	var subTxs []userevent.SubTransaction
 	err = json.Unmarshal([]byte(value.String()), &subTxs)
 	if err != nil {
 		ch <- NewContractCallResp(nil, nil, err)
+		return
 	}
 	ch <- NewContractCallResp(subTxs, otto.contractData(), nil)
 }
@@ -159,9 +163,8 @@ func (otto *Otto) upgradeContract(code []byte, data *types.ContractData, ch chan
 	}
 
 	_, err = otto.Run(`
-		var propStr = JSON.stringify(prop);
 		var contractStr = JSON.stringify(contract);
-		var contractData = JSON.stringify({ "prop": propStr, "contract": contractStr });
+		var contractData = JSON.stringify({ "prop": prop, "contract": contractStr });
 	`)
 	if err != nil {
 		ch <- NewContractData(nil, err)
@@ -184,9 +187,8 @@ func (otto *Otto) initContract(code []byte, ch chan *ContractData) {
 	}
 	_, err = otto.Run(`
 		init();
-		var propStr = JSON.stringify(prop);
 		var contractStr = JSON.stringify(contract);
-		var contractData = JSON.stringify({ "prop": propStr, "contract": contractStr });
+		var contractData = JSON.stringify({ "prop": prop, "contract": contractStr });
 	`)
 	value, err := otto.Get("contractData")
 	if err != nil {
