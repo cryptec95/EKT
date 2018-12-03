@@ -66,7 +66,7 @@ func (node ForkNode) GetHeaderByHeight(chainId, height int64) *blockchain.Header
 func (node ForkNode) loop() {
 	fail, failTime := false, 0
 
-	for height := int64(1); height < 784286; {
+	for height := node.blockchain.GetLastHeight(); height < 784286; {
 		if fail {
 			if failTime >= 3 {
 				time.Sleep(blockchain.BackboneBlockInterval)
