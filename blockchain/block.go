@@ -140,11 +140,11 @@ func (block *Block) ContractCall(tx userevent.Transaction) *userevent.Transactio
 		receipt := userevent.NewTransactionReceipt(tx, false, userevent.FailType_CONTRACT_ERROR)
 		return &receipt
 	}
-	txs, data, err := _vm.ContractCall(tx, contract, VM_CALL_TIMEOUT)
+	contractAccount := to.Contracts[hex.EncodeToString(toContractAddress)]
+	txs, data, err := _vm.ContractCall(tx, contract, string(contractAccount.ContractData), VM_CALL_TIMEOUT)
 	if err != nil {
 		return userevent.ContractRefuseTx(tx)
 	}
-	contractAccount := to.Contracts[hex.EncodeToString(toContractAddress)]
 	contractAccount.ContractData.Contract = string(data)
 	to.Contracts[hex.EncodeToString(toContractAddress)] = contractAccount
 	block.GetHeader().StatTree.MustInsert(toAccountAddress, to.ToBytes())
