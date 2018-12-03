@@ -238,3 +238,8 @@ func (tx Transaction) Bytes() []byte {
 	data, _ := json.Marshal(tx)
 	return data
 }
+
+func (receipt TransactionReceipt) Bytes() []byte {
+	data, _ := json.Marshal(receipt)
+	return data
+}

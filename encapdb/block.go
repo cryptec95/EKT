@@ -4,7 +4,7 @@ import (
 	"github.com/EducationEKT/EKT/blockchain"
 	"github.com/EducationEKT/EKT/core/types"
 	"github.com/EducationEKT/EKT/db"
-	"github.com/EducationEKT/EKT/encapdb/schema"
+	"github.com/EducationEKT/EKT/schema"
 )
 
 func GetBlockByHeight(chainId, height int64) *blockchain.Block {

@@ -1,7 +1,6 @@
 package types
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 )
@@ -15,13 +14,13 @@ type ContractProp struct {
 	Upgradable bool   `json:"upgradable"`
 }
 
-func (contractProp *ContractProp) UnmarshalJSON(data []byte) error {
-	data = bytes.Trim(data, `"`)
-	var _contractProp ContractProp
-	err := json.Unmarshal(data, &_contractProp)
-	*contractProp = _contractProp
-	return err
-}
+//func (contractProp *ContractProp) UnmarshalJSON(data []byte) error {
+//	data = bytes.Trim(data, `"`)
+//	var _contractProp ContractProp
+//	err := json.Unmarshal(data, &_contractProp)
+//	*contractProp = _contractProp
+//	return err
+//}
 
 func (contractProp *ContractProp) MarshalJSON() ([]byte, error) {
 	data, err := json.Marshal(contractProp)
@@ -33,13 +32,13 @@ type ContractData struct {
 	Contract string       `json:"contract"`
 }
 
-func (contractData *ContractData) UnmarshalJSON(data []byte) error {
-	data = bytes.Trim(data, `"`)
-	var _contractData ContractData
-	err := json.Unmarshal(data, &_contractData)
-	*contractData = _contractData
-	return err
-}
+//func (contractData *ContractData) UnmarshalJSON(data []byte) error {
+//	data = bytes.Trim(data, `"`)
+//	var _contractData ContractData
+//	err := json.Unmarshal(data, &_contractData)
+//	*contractData = _contractData
+//	return err
+//}
 
 func (contractData *ContractData) MarshalJSON() ([]byte, error) {
 	data, err := json.Marshal(contractData)

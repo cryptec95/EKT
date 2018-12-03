@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
+	"os"
 	"strconv"
 	"time"
 
@@ -104,6 +106,7 @@ func (block *Block) NewTransaction(tx userevent.Transaction) *userevent.Transact
 		receipt := userevent.NewTransactionReceipt(tx, false, userevent.FailType_CHECK_FAIL)
 		return &receipt
 	}
+
 	switch len(tx.To) {
 	case 0:
 		// Deploy contract
@@ -134,7 +137,12 @@ func (block *Block) ContractCall(tx userevent.Transaction) *userevent.Transactio
 		}
 	}
 	_vm := vm.NewVM(block.GetHeader().PreviousHash, block.GetHeader().Timestamp)
-	txs, data, err := _vm.ContractCall(tx, VM_CALL_TIMEOUT)
+	contract, err := db.GetDBInst().Get(to.Contracts[hex.EncodeToString(toContractAddress)].CodeHash)
+	if err != nil {
+		receipt := userevent.NewTransactionReceipt(tx, false, userevent.FailType_CONTRACT_ERROR)
+		return &receipt
+	}
+	txs, data, err := _vm.ContractCall(tx, contract, VM_CALL_TIMEOUT)
 	if err != nil {
 		return userevent.ContractRefuseTx(tx)
 	}
@@ -181,6 +189,7 @@ func (block *Block) DeployContract(tx userevent.Transaction) *userevent.Transact
 	}
 
 	contractHash := crypto.Sha3_256([]byte(tx.Data))
+	db.GetDBInst().Set(contractHash, []byte(tx.Data))
 	addr := crypto.Sha3_256([]byte(strconv.Itoa(len(account.Contracts) + 1)))
 
 	contractAccount := types.NewContractAccount(addr, contractHash, *contractData)
@@ -304,6 +313,17 @@ func CreateGenesisBlock(accounts []types.Account) Block {
 func CreateBlock(last Header, time int64, peer types.Peer) *Block {
 	coinbase, _ := hex.DecodeString(peer.Account)
 	header := NewHeader(last, time, last.CalculateHash(), coinbase)
+	return &Block{
+		Header:              header,
+		Miner:               peer,
+		Transactions:        make([]userevent.Transaction, 0),
+		TransactionReceipts: make([]userevent.TransactionReceipt, 0),
+	}
+}
+
+func NewBlock_V2(last Header, time int64, peer types.Peer) *Block {
+	coinbase, _ := hex.DecodeString(peer.Account)
+	header := NewHeader_V2(last, time, last.CalculateHash(), coinbase)
 	return &Block{
 		Header:              header,
 		Miner:               peer,

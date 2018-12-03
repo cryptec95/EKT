@@ -9,6 +9,7 @@ import (
 	"github.com/EducationEKT/EKT/db"
 	"github.com/EducationEKT/EKT/log"
 	"github.com/EducationEKT/EKT/pool"
+	"github.com/EducationEKT/EKT/schema"
 )
 
 const (
@@ -68,6 +69,14 @@ func (chain *BlockChain) PackTransaction(clog *ctxlog.ContextLog, block *Block) 
 				}
 				for _, tx := range txs {
 					receipt := block.NewTransaction(*tx)
+					block.Header.TxRoot.MustInsert(tx.TxId(), tx.Bytes())
+					block.Header.ReceiptRoot.MustInsert(tx.TxId(), receipt.Bytes())
+					receiptDetail := userevent.ReceiptDetail{
+						Receipt:     *receipt,
+						BlockNumber: block.GetHeader().Height,
+						Index:       int64(numTx),
+					}
+					db.GetDBInst().Set(schema.GetReceiptByTxHashKey(chain.ChainId, tx.TransactionId()), receiptDetail.Bytes())
 					block.Transactions = append(block.Transactions, *tx)
 					block.TransactionReceipts = append(block.TransactionReceipts, *receipt)
 				}

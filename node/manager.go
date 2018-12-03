@@ -15,6 +15,7 @@ import (
 const (
 	NODE_ENV_FULL_SYNC = "full"
 	NODE_ENV_DELEGETE  = "delegate"
+	FORK_ENV           = "fork"
 	Adaptive           = "adaptive"
 )
 
@@ -28,6 +29,8 @@ func Init(env string) {
 		fullNode = NewFullMode()
 	case NODE_ENV_DELEGETE:
 		fullNode = NewDelegateNode()
+	case FORK_ENV:
+		fullNode = NewForkNode()
 	case Adaptive:
 		env := checkEnv()
 		Init(env)

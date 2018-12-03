@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"github.com/EducationEKT/EKT/blockchain"
 	"github.com/EducationEKT/EKT/db"
-	"github.com/EducationEKT/EKT/encapdb/schema"
+	"github.com/EducationEKT/EKT/schema"
 )
 
 func GetVoteResults(chainId int64, hash string) blockchain.Votes {

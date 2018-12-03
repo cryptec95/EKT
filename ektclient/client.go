@@ -69,6 +69,16 @@ func (client Client) GetHeaderByHash(hash []byte) *blockchain.Header {
 	return nil
 }
 
+func (client Client) GetValueByHash(hash []byte) []byte {
+	for _, peer := range client.peers {
+		data, err := peer.GetDBValue(hex.EncodeToString(hash))
+		if err == nil && bytes.Equal(crypto.Sha3_256(data), hash) {
+			return data
+		}
+	}
+	return nil
+}
+
 func (client Client) GetLastBlock(peer types.Peer) *blockchain.Header {
 	for _, peer := range client.peers {
 		url := util.StringJoint("http://", peer.Address, ":", strconv.Itoa(int(peer.Port)), "/block/api/last")
