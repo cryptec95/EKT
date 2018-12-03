@@ -56,9 +56,9 @@ func NewContractData(contractData *types.ContractData, err error) *ContractData 
 	}
 }
 
-func (otto *Otto) ContractCall(tx userevent.Transaction, contract []byte, timeout time.Duration) ([]userevent.SubTransaction, []byte, error) {
+func (otto *Otto) ContractCall(tx userevent.Transaction, contract []byte, contractData string, timeout time.Duration) ([]userevent.SubTransaction, []byte, error) {
 	ch := make(chan *ContractCallResp)
-	go otto.contractCall(tx, contract, ch)
+	go otto.contractCall(tx, contract, contractData, ch)
 	for {
 		select {
 		case <-time.After(timeout):
@@ -69,13 +69,16 @@ func (otto *Otto) ContractCall(tx userevent.Transaction, contract []byte, timeou
 	}
 }
 
-func (otto *Otto) contractCall(tx userevent.Transaction, contract []byte, ch chan *ContractCallResp) {
+func (otto *Otto) contractCall(tx userevent.Transaction, contract []byte, contractData string, ch chan *ContractCallResp) {
 	otto.Run(string(contract))
+	otto.Set("contractData", contractData)
 	otto.Set("data", tx.Data)
 	otto.Set("additional", tx.Additional)
 	otto.Set("tx", string(tx.Bytes()))
 
 	_, err := otto.Run(`
+		var contract = JSON.parse(contractData);
+
 		var transaction = JSON.parse(tx);
 		var result = call();
 		var txs = "[]";
