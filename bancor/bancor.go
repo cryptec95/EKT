@@ -2,8 +2,9 @@ package bancor
 
 import (
 	"encoding/json"
-	"github.com/EducationEKT/EKT/core/userevent"
 	"math"
+
+	"github.com/EducationEKT/EKT/core/userevent"
 )
 
 type Bancor struct {
