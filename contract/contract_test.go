@@ -2,10 +2,11 @@ package contract
 
 import (
 	"fmt"
-	"github.com/EducationEKT/EKT/bancor"
-	"github.com/EducationEKT/EKT/core/types"
 	"math"
 	"testing"
+
+	"github.com/EducationEKT/EKT/bancor"
+	"github.com/EducationEKT/EKT/core/types"
 )
 
 func TestCall(t *testing.T) {

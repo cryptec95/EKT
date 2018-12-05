@@ -2,8 +2,9 @@ package pool
 
 import (
 	"bytes"
-	"github.com/EducationEKT/EKT/core/userevent"
 	"sync"
+
+	"github.com/EducationEKT/EKT/core/userevent"
 )
 
 type TxTimedList struct {

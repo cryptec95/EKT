@@ -2,6 +2,7 @@ package userevent
 
 import (
 	"bytes"
+
 	"github.com/EducationEKT/EKT/core/types"
 	"github.com/EducationEKT/EKT/crypto"
 )

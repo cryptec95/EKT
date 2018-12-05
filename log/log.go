@@ -16,6 +16,12 @@ func InitLog(logPath string) {
 	})
 }
 
+func LogErr(err error) {
+	if err != nil {
+		Error("There is an error, %v .", err)
+	}
+}
+
 func Debug(msg string, args ...interface{}) {
 	l.Debug(msg, args...)
 }

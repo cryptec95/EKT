@@ -8,7 +8,6 @@ import (
 	"runtime"
 
 	_ "github.com/EducationEKT/EKT/api"
-
 	"github.com/EducationEKT/EKT/conf"
 	"github.com/EducationEKT/EKT/db"
 	"github.com/EducationEKT/EKT/log"

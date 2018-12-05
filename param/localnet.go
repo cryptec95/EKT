@@ -3,9 +3,10 @@ package param
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/EducationEKT/EKT/core/types"
 	"io/ioutil"
 	"log"
+
+	"github.com/EducationEKT/EKT/core/types"
 )
 
 var LocalNet = []types.Peer{

@@ -2,8 +2,9 @@ package pool
 
 import (
 	"encoding/hex"
-	"github.com/EducationEKT/EKT/core/userevent"
 	"sync"
+
+	"github.com/EducationEKT/EKT/core/userevent"
 )
 
 type TransactionDict struct {
