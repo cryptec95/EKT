@@ -3,11 +3,12 @@ package pool
 import (
 	"encoding/hex"
 	"fmt"
+	"testing"
+	"time"
+
 	"github.com/EducationEKT/EKT/core/types"
 	"github.com/EducationEKT/EKT/core/userevent"
 	"github.com/EducationEKT/EKT/crypto"
-	"testing"
-	"time"
 )
 
 func TestSortedSave(t *testing.T) {

@@ -5,9 +5,10 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"strings"
+
 	"github.com/EducationEKT/EKT/core/types"
 	"github.com/EducationEKT/EKT/crypto"
-	"strings"
 )
 
 type KeyStore struct {

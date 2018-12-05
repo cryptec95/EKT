@@ -3,9 +3,10 @@ package context
 import (
 	"encoding/hex"
 	"fmt"
-	"github.com/EducationEKT/EKT/crypto"
 	"sync"
 	"testing"
+
+	"github.com/EducationEKT/EKT/crypto"
 )
 
 func TestSticker_Get(t *testing.T) {

@@ -2,8 +2,9 @@ package crypto
 
 import (
 	"fmt"
-	"github.com/ethereum/go-ethereum/common/hexutil"
 	"testing"
+
+	"github.com/ethereum/go-ethereum/common/hexutil"
 )
 
 func TestSha3(t *testing.T) {

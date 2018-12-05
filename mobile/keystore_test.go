@@ -3,9 +3,10 @@ package mobile
 import (
 	"encoding/hex"
 	"fmt"
-	"github.com/EducationEKT/EKT/crypto"
 	"strings"
 	"testing"
+
+	"github.com/EducationEKT/EKT/crypto"
 )
 
 func TestCreateKeyStore(t *testing.T) {
