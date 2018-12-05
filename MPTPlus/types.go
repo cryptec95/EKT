@@ -4,9 +4,10 @@ import (
 	"bytes"
 	"encoding/hex"
 	"fmt"
+	"sort"
+
 	"github.com/EducationEKT/EKT/core/types"
 	"github.com/EducationEKT/EKT/db"
-	"sort"
 )
 
 /*
