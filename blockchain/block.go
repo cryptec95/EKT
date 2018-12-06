@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/EducationEKT/EKT/context"
-	"github.com/EducationEKT/EKT/contract"
 	"github.com/EducationEKT/EKT/core/types"
 	"github.com/EducationEKT/EKT/core/userevent"
 	"github.com/EducationEKT/EKT/crypto"
@@ -129,12 +128,10 @@ func (block *Block) ContractCall(tx userevent.Transaction) *userevent.Transactio
 		to = types.NewAccount(toAccountAddress)
 	}
 	if _, exist := to.Contracts[hex.EncodeToString(toContractAddress)]; !exist {
-		if !contract.InitContractAccount(tx, to) {
-			receipt := userevent.NewTransactionReceipt(tx, false, userevent.FailType_INIT_CONTRACT_ACCOUNT_FAIL)
-			return &receipt
-		}
+		receipt := userevent.NewTransactionReceipt(tx, false, userevent.FailType_INVALID_ADDRESS)
+		return &receipt
 	}
-	_vm := vm.NewVM(block.GetHeader().PreviousHash, block.GetHeader().Timestamp)
+	_vm := vm.NewVM(block.GetHeader().PreviousHash, block.GetHeader().Timestamp, block.GetHeader())
 	contract, err := db.GetDBInst().Get(to.Contracts[hex.EncodeToString(toContractAddress)].CodeHash)
 	if err != nil {
 		receipt := userevent.NewTransactionReceipt(tx, false, userevent.FailType_CONTRACT_ERROR)
@@ -174,7 +171,7 @@ func (block *Block) NormalTransfer(tx userevent.Transaction) *userevent.Transact
 func (block *Block) DeployContract(tx userevent.Transaction) *userevent.TransactionReceipt {
 	account, _ := block.GetHeader().GetAccount(tx.From)
 
-	_vm := vm.NewVM(block.GetHeader().PreviousHash, block.GetHeader().Timestamp)
+	_vm := vm.NewVM(block.GetHeader().PreviousHash, block.GetHeader().Timestamp, block.GetHeader())
 	contractData, err := _vm.InitContractWithTimeout([]byte(tx.Data), VM_CALL_TIMEOUT)
 	if err != nil {
 		if err == vm.TIMEOUT_ERROR {
@@ -241,7 +238,7 @@ func (block *Block) upgradeContract(tx userevent.Transaction) *userevent.Transac
 		return &receipt
 	}
 
-	_vm := vm.NewVM(block.GetHeader().PreviousHash, block.GetHeader().Timestamp)
+	_vm := vm.NewVM(block.GetHeader().PreviousHash, block.GetHeader().Timestamp, block.GetHeader())
 	contractData, err := _vm.UpgradeContract([]byte(tx.Data), &contractAccount.ContractData, VM_CALL_TIMEOUT)
 	if err != nil {
 		receipt := userevent.NewTransactionReceipt(tx, false, userevent.FailType_CONTRACT_ERROR)

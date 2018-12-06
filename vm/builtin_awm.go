@@ -4,10 +4,13 @@ import (
 	"bytes"
 	"encoding/hex"
 	"encoding/json"
-	"github.com/EducationEKT/EKT/core/userevent"
+	"fmt"
+	"strings"
 
 	"github.com/EducationEKT/EKT/core/types"
+	"github.com/EducationEKT/EKT/core/userevent"
 	"github.com/EducationEKT/EKT/crypto"
+	"github.com/EducationEKT/EKT/db"
 )
 
 func builtinAWM_Sha3_256(call FunctionCall) Value {
@@ -63,4 +66,57 @@ func builtinAWM_Contract_Refuse_Tx(call FunctionCall) Value {
 	subTx := userevent.NewSubTransaction(tx.TxId(), tx.To, tx.From, tx.Amount, "contract refused", tx.TokenAddress)
 	txData, _ := json.Marshal(subTx)
 	return toValue_string(string(txData))
+}
+
+func builtinAWM_contract_call(call FunctionCall) Value {
+	if len(call.ArgumentList) < 2 {
+		return falseValue
+	}
+
+	vm := call.Otto.clone()
+	contractAddr := call.ArgumentList[0].string()
+	if strings.HasPrefix(contractAddr, "0x") {
+		contractAddr = contractAddr[2:]
+	}
+	address, err := hex.DecodeString(contractAddr)
+	if err != nil {
+		return falseValue
+	}
+	account, err := call.Otto.chainReader.GetAccount(address[:32])
+	if err != nil {
+		return falseValue
+	}
+	if len(account.Contracts) == 0 {
+		return falseValue
+	}
+	contractAccount, exist := account.Contracts[hex.EncodeToString(address[32:])]
+	if !exist {
+		return falseValue
+	}
+
+	contract, err := db.GetDBInst().Get(contractAccount.CodeHash)
+	if err != nil {
+		return falseValue
+	}
+	vm.Run(string(contract))
+
+	method := call.ArgumentList[1]
+	args := call.ArgumentList[2:]
+
+	vm.Set("args", args)
+
+	str := fmt.Sprintf(`
+		try {
+			var result = %s.apply(null, args);
+		} catch(err) {
+			console.log(err);
+		}
+	`, method.String())
+	vm.Run(str)
+
+	value, err := vm.Get("result")
+	if err != nil {
+		return falseValue
+	}
+	return value
 }
