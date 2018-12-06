@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/EducationEKT/EKT/core/interface"
 	"github.com/EducationEKT/EKT/core/types"
 	"github.com/EducationEKT/EKT/core/userevent"
 	"github.com/EducationEKT/EKT/crypto"
@@ -25,9 +26,11 @@ var (
 type Otto struct {
 	// Interrupt is a channel for interrupting the runtime. You can use this to halt a long running execution, for example.
 	// See "Halting Problem" for more information.
-	Interrupt chan func()
-	runtime   *_runtime
-	rc        int // random count
+	Interrupt   chan func()
+	chainReader _interface.ChainReader
+	runtime     *_runtime
+	seed        []byte
+	rc          int // random count
 }
 
 type ContractData struct {
@@ -203,18 +206,20 @@ func (otto *Otto) initContract(code []byte, ch chan *ContractData) {
 	ch <- NewContractData(&contractData, err)
 }
 
-func NewVM(lastHash []byte, timestamp int64) *Otto {
+func NewVM(lastHash []byte, timestamp int64, chainReader _interface.ChainReader) *Otto {
 	self := &Otto{
 		runtime: newContext(),
 		rc:      0,
 	}
 	self.runtime.otto = self
 	self.runtime.traceLimit = 10
+	self.seed = lastHash
+	self.chainReader = chainReader
 	self.runtime.timestamp = timestamp
 	self.Set("console", self.runtime.newConsole())
 
 	self.SetRandomSource(func(vm *Otto) float64 {
-		hash := crypto.Sha3_256(lastHash)
+		hash := crypto.Sha3_256(self.seed)
 		rcHash := crypto.Sha3_256([]byte(strconv.Itoa(vm.rc)))
 		seed1 := util.BytesToInt(hash)
 		seed2 := util.BytesToInt(rcHash)
@@ -233,26 +238,11 @@ func NewVM(lastHash []byte, timestamp int64) *Otto {
 
 // New will allocate a new JavaScript runtime
 func New() *Otto {
-	self := &Otto{
-		runtime: newContext(),
-	}
-	self.runtime.otto = self
-	self.runtime.traceLimit = 10
-	self.Set("console", self.runtime.newConsole())
-
-	registry.Apply(func(entry registry.Entry) {
-		self.Run(entry.Source())
-	})
-
-	return self
+	return NewVM(crypto.Sha3_256([]byte("123")), time.Now().UnixNano()/1e6, nil)
 }
 
 func (otto *Otto) clone() *Otto {
-	self := &Otto{
-		runtime: otto.runtime.clone(),
-	}
-	self.runtime.otto = self
-	return self
+	return NewVM(otto.seed, otto.runtime.timestamp, otto.chainReader)
 }
 
 // Run will allocate a new JavaScript runtime, run the given source
