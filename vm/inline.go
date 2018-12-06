@@ -5845,6 +5845,30 @@ func _newContext(runtime *_runtime) {
 			},
 		}
 
+		contract_call_function := &_object{
+			runtime:     runtime,
+			class:       "Function",
+			objectClass: _classObject,
+			prototype:   runtime.global.FunctionPrototype,
+			extensible:  true,
+			property: map[string]_property{
+				"length": _property{
+					mode: 0,
+					value: Value{
+						kind:  valueNumber,
+						value: 3,
+					},
+				},
+			},
+			propertyOrder: []string{
+				"length",
+			},
+			value: _nativeFunctionObject{
+				name: "contract_call",
+				call: builtinAWM_contract_call,
+			},
+		}
+
 		runtime.global.AWM = &_object{
 			runtime:     runtime,
 			class:       "AWM",
@@ -5894,6 +5918,13 @@ func _newContext(runtime *_runtime) {
 						value: mpt_get_function,
 					},
 				},
+				"contract_call": {
+					mode: 0101,
+					value: Value{
+						kind:  valueObject,
+						value: contract_call_function,
+					},
+				},
 			},
 			propertyOrder: []string{
 				"sha3_256",
@@ -5902,6 +5933,7 @@ func _newContext(runtime *_runtime) {
 				"mpt_init",
 				"mpt_save",
 				"mpt_get",
+				"contract_call",
 			},
 		}
 	}
