@@ -12,7 +12,7 @@ var (
 )
 
 func init() {
-	cmds = append(cmds, cmd.TransactionCmd, cmd.AccountCmd)
+	cmds = append(cmds, cmd.TransactionCmd, cmd.AccountCmd, cmd.ContractCmd)
 }
 
 func main() {
