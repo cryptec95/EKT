@@ -84,6 +84,18 @@ func (header Header) GetAccount(address []byte) (*types.Account, error) {
 	return &account, nil
 }
 
+func (header Header) GetTimestamp() int64 {
+	return header.Timestamp
+}
+
+func (header Header) Author() []byte {
+	return header.Coinbase
+}
+
+func (header Header) GetParent() []byte {
+	return header.PreviousHash
+}
+
 func (header Header) ExistAddress(address []byte) bool {
 	return header.StatTree.ContainsKey(address)
 }

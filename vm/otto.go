@@ -1,6 +1,7 @@
 package vm
 
 import (
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -13,6 +14,8 @@ import (
 	"github.com/EducationEKT/EKT/core/types"
 	"github.com/EducationEKT/EKT/core/userevent"
 	"github.com/EducationEKT/EKT/crypto"
+	"github.com/EducationEKT/EKT/db"
+	"github.com/EducationEKT/EKT/log"
 	"github.com/EducationEKT/EKT/util"
 	"github.com/EducationEKT/EKT/vm/file"
 	"github.com/EducationEKT/EKT/vm/registry"
@@ -59,9 +62,9 @@ func NewContractData(contractData *types.ContractData, err error) *ContractData 
 	}
 }
 
-func (otto *Otto) ContractCall(tx userevent.Transaction, contract []byte, contractData string, timeout time.Duration) ([]userevent.SubTransaction, []byte, error) {
+func (otto *Otto) ContractCall(tx userevent.Transaction, timeout time.Duration) ([]userevent.SubTransaction, []byte, error) {
 	ch := make(chan *ContractCallResp)
-	go otto.contractCall(tx, contract, contractData, ch)
+	go otto.contractCall(tx, ch)
 	for {
 		select {
 		case <-time.After(timeout):
@@ -72,42 +75,14 @@ func (otto *Otto) ContractCall(tx userevent.Transaction, contract []byte, contra
 	}
 }
 
-func (otto *Otto) contractCall(tx userevent.Transaction, contract []byte, contractData string, ch chan *ContractCallResp) {
-	otto.Run(string(contract))
-	otto.Set("contractData", contractData)
-	otto.Set("data", tx.Data)
-	otto.Set("additional", tx.Additional)
-	otto.Set("tx", string(tx.Bytes()))
-
-	_, err := otto.Run(`
-		var contract = JSON.parse(contractData);
-
-		var transaction = JSON.parse(tx);
-		var result = call();
-		var txs = "[]";
-		if (result !== undefined && result !== null) {
-			txs = JSON.stringify(result);
-		}
-	`)
-
+func (otto *Otto) contractCall(tx userevent.Transaction, ch chan *ContractCallResp) {
+	err := otto.LoadContract(tx.To)
 	if err != nil {
 		ch <- NewContractCallResp(nil, nil, err)
 		return
 	}
 
-	value, err := otto.Get("txs")
-	if err != nil {
-		ch <- NewContractCallResp(nil, nil, err)
-		return
-	}
-
-	var subTxs []userevent.SubTransaction
-	err = json.Unmarshal([]byte(value.String()), &subTxs)
-	if err != nil {
-		ch <- NewContractCallResp(nil, nil, err)
-		return
-	}
-	ch <- NewContractCallResp(subTxs, otto.contractData(), nil)
+	ch <- otto.call(tx)
 }
 
 func (otto *Otto) contractData() []byte {
@@ -206,16 +181,16 @@ func (otto *Otto) initContract(code []byte, ch chan *ContractData) {
 	ch <- NewContractData(&contractData, err)
 }
 
-func NewVM(lastHash []byte, timestamp int64, chainReader _interface.ChainReader) *Otto {
+func NewVM(chainReader _interface.ChainReader) *Otto {
 	self := &Otto{
 		runtime: newContext(),
 		rc:      0,
 	}
 	self.runtime.otto = self
 	self.runtime.traceLimit = 10
-	self.seed = lastHash
+	self.seed = chainReader.GetParent()
 	self.chainReader = chainReader
-	self.runtime.timestamp = timestamp
+	self.runtime.timestamp = chainReader.GetTimestamp()
 	self.Set("console", self.runtime.newConsole())
 
 	self.SetRandomSource(func(vm *Otto) float64 {
@@ -236,29 +211,85 @@ func NewVM(lastHash []byte, timestamp int64, chainReader _interface.ChainReader)
 	return self
 }
 
-// New will allocate a new JavaScript runtime
-func New() *Otto {
-	return NewVM(crypto.Sha3_256([]byte("123")), time.Now().UnixNano()/1e6, nil)
+func (otto *Otto) call(tx userevent.Transaction) *ContractCallResp {
+	log.LogErr(otto.Set("data", tx.Data))
+	log.LogErr(otto.Set("additional", tx.Additional))
+	log.LogErr(otto.Set("tx", string(tx.Bytes())))
+
+	_, err := otto.Run(`
+		var transaction = JSON.parse(tx);
+
+		var result = call();
+		var txs = "[]";
+
+		if (result !== undefined && result !== null) {
+			txs = JSON.stringify(result);
+		}
+	`)
+
+	if err != nil {
+		return NewContractCallResp(nil, nil, err)
+	}
+
+	value, err := otto.Get("txs")
+	if err != nil {
+		return NewContractCallResp(nil, nil, err)
+	}
+
+	var subTxs []userevent.SubTransaction
+	err = json.Unmarshal([]byte(value.String()), &subTxs)
+	if err != nil {
+		return NewContractCallResp(nil, nil, err)
+	}
+
+	return NewContractCallResp(subTxs, otto.contractData(), nil)
+}
+
+func (otto *Otto) LoadContract(addr []byte) error {
+	if len(addr) != 64 {
+		return errors.New("invalid contract address")
+	}
+
+	accountAddr := addr[:32]
+	contractAddr := addr[32:]
+
+	account, err := otto.chainReader.GetAccount(accountAddr)
+	if err != nil {
+		return err
+	}
+
+	if len(account.Contracts) == 0 {
+		return errors.New("invalid contract address")
+	}
+
+	contractAccount, exist := account.Contracts[hex.EncodeToString(contractAddr)]
+	if !exist {
+		return errors.New("invalid contract address")
+	}
+
+	return otto.loadContractWithAccount(contractAccount)
+}
+
+func (otto *Otto) loadContractWithAccount(account types.ContractAccount) error {
+	log.LogErr(otto.Set("contractData", account.ContractData.Contract))
+	contract, err := db.GetDBInst().Get(account.CodeHash)
+	if err != nil {
+		return err
+	}
+
+	_, err = otto.Run(string(contract))
+	if err != nil {
+		return err
+	}
+
+	_, err = otto.Run(`
+		var contract = JSON.parse(contractData);
+	`)
+	return err
 }
 
 func (otto *Otto) clone() *Otto {
-	return NewVM(otto.seed, otto.runtime.timestamp, otto.chainReader)
-}
-
-// Run will allocate a new JavaScript runtime, run the given source
-// on the allocated runtime, and return the runtime, resulting value, and
-// error (if any).
-//
-// src may be a string, a byte slice, a bytes.Buffer, or an io.Reader, but it MUST always be in UTF-8.
-//
-// src may also be a Script.
-//
-// src may also be a Program, but if the AST has been modified, then runtime behavior is undefined.
-//
-func Run(src interface{}) (*Otto, Value, error) {
-	otto := New()
-	value, err := otto.Run(src) // This already does safety checking
-	return otto, value, err
+	return NewVM(otto.chainReader)
 }
 
 // Run will run the given source (parsing it first if necessary), returning the resulting value and error (if any)
