@@ -10,7 +10,7 @@ import (
 	"github.com/EducationEKT/EKT/core/types"
 	"github.com/EducationEKT/EKT/core/userevent"
 	"github.com/EducationEKT/EKT/crypto"
-	"github.com/EducationEKT/EKT/db"
+	"github.com/EducationEKT/EKT/log"
 )
 
 func builtinAWM_Sha3_256(call FunctionCall) Value {
@@ -74,45 +74,30 @@ func builtinAWM_contract_call(call FunctionCall) Value {
 	}
 
 	vm := call.Otto.clone()
-	contractAddr := call.ArgumentList[0].string()
+	contractAddr := call.ArgumentList[0].String()
 	if strings.HasPrefix(contractAddr, "0x") {
 		contractAddr = contractAddr[2:]
 	}
+
 	address, err := hex.DecodeString(contractAddr)
 	if err != nil {
 		return falseValue
 	}
-	account, err := call.Otto.chainReader.GetAccount(address[:32])
-	if err != nil {
-		return falseValue
-	}
-	if len(account.Contracts) == 0 {
-		return falseValue
-	}
-	contractAccount, exist := account.Contracts[hex.EncodeToString(address[32:])]
-	if !exist {
-		return falseValue
-	}
 
-	contract, err := db.GetDBInst().Get(contractAccount.CodeHash)
+	err = vm.LoadContract(address)
 	if err != nil {
 		return falseValue
 	}
-	vm.Run(string(contract))
 
 	method := call.ArgumentList[1]
 	args := call.ArgumentList[2:]
 
-	vm.Set("args", args)
+	log.LogErr(vm.Set("args", args))
 
-	str := fmt.Sprintf(`
-		try {
-			var result = %s.apply(null, args);
-		} catch(err) {
-			console.log(err);
-		}
-	`, method.String())
-	vm.Run(str)
+	_, err = vm.Run(fmt.Sprintf("var result = %s.apply(null, args);", method.String()))
+	if err != nil {
+		return falseValue
+	}
 
 	value, err := vm.Get("result")
 	if err != nil {
