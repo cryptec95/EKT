@@ -40,19 +40,13 @@ type Header struct {
 }
 
 func (header Header) Equal(peerHeader Header) bool {
-	if header.Version != peerHeader.Version {
-		return false
-	}
-	if header.Version == HEADER_VERSION_MIXED {
-		return header.Height == peerHeader.Height &&
-			header.Timestamp == peerHeader.Timestamp &&
-			header.TotalFee == peerHeader.TotalFee &&
-			bytes.Equal(header.PreviousHash, peerHeader.PreviousHash) &&
-			bytes.Equal(header.Coinbase, peerHeader.Coinbase) &&
-			bytes.Equal(header.TokenTree.Root, peerHeader.TokenTree.Root) &&
-			bytes.Equal(header.StatTree.Root, peerHeader.StatTree.Root)
-	}
-	return bytes.Equal(header.CalculateHash(), peerHeader.CalculateHash())
+	return header.Height == peerHeader.Height &&
+		header.Timestamp == peerHeader.Timestamp &&
+		header.TotalFee == peerHeader.TotalFee &&
+		bytes.Equal(header.PreviousHash, peerHeader.PreviousHash) &&
+		bytes.Equal(header.Coinbase, peerHeader.Coinbase) &&
+		bytes.Equal(header.TokenTree.Root, peerHeader.TokenTree.Root) &&
+		bytes.Equal(header.StatTree.Root, peerHeader.StatTree.Root)
 }
 
 func (header *Header) Bytes() []byte {
