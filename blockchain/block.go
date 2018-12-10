@@ -12,7 +12,9 @@ import (
 	"github.com/EducationEKT/EKT/core/userevent"
 	"github.com/EducationEKT/EKT/crypto"
 	"github.com/EducationEKT/EKT/db"
+	"github.com/EducationEKT/EKT/ektclient"
 	"github.com/EducationEKT/EKT/log"
+	"github.com/EducationEKT/EKT/param"
 	"github.com/EducationEKT/EKT/vm"
 )
 
@@ -50,12 +52,13 @@ func (block Block) GetTransactions() []userevent.Transaction {
 	if hex.EncodeToString(block.GetHeader().TxHash) == EMPTY_TX {
 		return []userevent.Transaction{}
 	} else if len(block.Transactions) == 0 {
-		body, err := block.Miner.GetDBValue(hex.EncodeToString(block.GetHeader().TxHash))
-		if err != nil {
+		client := ektclient.NewClient(param.MainChainDelegateNode)
+		body := client.GetValueByHash(block.GetHeader().TxHash)
+		if len(body) == 0 {
 			return nil
 		}
 		var txs []userevent.Transaction
-		err = json.Unmarshal(body, &txs)
+		err := json.Unmarshal(body, &txs)
 		if err != nil {
 			return nil
 		}
@@ -277,7 +280,7 @@ func (block *Block) Finish() {
 
 func logErr(err error) {
 	if err != nil {
-		log.Debug("Error while save block, %v", err)
+		log.Debug("error: %v", err)
 	}
 }
 
