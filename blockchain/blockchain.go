@@ -69,14 +69,14 @@ func (chain *BlockChain) PackTransaction(clog *ctxlog.ContextLog, block *Block) 
 				}
 				for _, tx := range txs {
 					receipt := block.NewTransaction(*tx)
-					block.Header.TxRoot.MustInsert(tx.TxId(), tx.Bytes())
-					block.Header.ReceiptRoot.MustInsert(tx.TxId(), receipt.Bytes())
+					log.LogErr(block.Header.TxRoot.MustInsert(tx.TxId(), tx.Bytes()))
+					log.LogErr(block.Header.ReceiptRoot.MustInsert(tx.TxId(), receipt.Bytes()))
 					receiptDetail := userevent.ReceiptDetail{
 						Receipt:     *receipt,
 						BlockNumber: block.GetHeader().Height,
 						Index:       int64(numTx),
 					}
-					db.GetDBInst().Set(schema.GetReceiptByTxHashKey(chain.ChainId, tx.TransactionId()), receiptDetail.Bytes())
+					log.LogErr(db.GetDBInst().Set(schema.GetReceiptByTxHashKey(chain.ChainId, tx.TransactionId()), receiptDetail.Bytes()))
 					block.Transactions = append(block.Transactions, *tx)
 					block.TransactionReceipts = append(block.TransactionReceipts, *receipt)
 				}
@@ -126,6 +126,8 @@ func (chain *BlockChain) ValidateBlock(next Block) bool {
 				logErr(db.GetDBInst().Set(tx.TxId(), tx.Bytes()))
 			}
 		}
+		log.LogErr(newBlock.GetHeader().TxRoot.MustInsert(tx.TxId(), tx.Bytes()))
+		log.LogErr(newBlock.GetHeader().ReceiptRoot.MustInsert(tx.TxId(), tx.Bytes()))
 		receipt := newBlock.NewTransaction(tx)
 		newBlock.Transactions = append(newBlock.Transactions, tx)
 		newBlock.TransactionReceipts = append(newBlock.TransactionReceipts, *receipt)

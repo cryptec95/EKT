@@ -277,7 +277,7 @@ func (block *Block) Finish() {
 
 func logErr(err error) {
 	if err != nil {
-		log.Debug("Error while save block, %v", err)
+		log.Debug("error: %v", err)
 	}
 }
 
@@ -302,7 +302,7 @@ func CreateGenesisBlock(accounts []types.Account) Block {
 
 func CreateBlock(last Header, time int64, peer types.Peer) *Block {
 	coinbase, _ := hex.DecodeString(peer.Account)
-	header := NewHeader(last, time, last.CalculateHash(), coinbase)
+	header := NewHeader_V2(last, time, last.CalculateHash(), coinbase)
 	return &Block{
 		Header:              header,
 		Miner:               peer,
