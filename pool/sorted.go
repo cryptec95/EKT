@@ -82,8 +82,6 @@ func (sorted *UserTxs) Save(tx *userevent.Transaction) ([]*userevent.Transaction
 			}
 			sorted.Nonce = lastNonce
 			sorted.updateIndex()
-			//sorted.clearNonces()
-			//sorted.Notify(lastNonce)
 			return list, true
 		}
 	}
@@ -151,7 +149,19 @@ func NewUsersTxs() *UsersTxs {
 }
 
 func (m *UserTxs) Promote(address []byte, nonce int64) ([]*userevent.Transaction, bool) {
-	m.Nonce = nonce
+	list := make([]*userevent.Transaction, 0)
+	lastNonce := nonce
+	for i := 0; i < len(*m.Nonces); i++ {
+		if (*m.Nonces)[i] == lastNonce+1 {
+			lastNonce++
+			_tx := m.Txs[lastNonce]
+			list = append(list, _tx)
+		}
+	}
+	m.Nonce = lastNonce
+	if lastNonce > nonce {
+		return list, true
+	}
 	return nil, false
 }
 
@@ -176,8 +186,6 @@ func (m *UsersTxs) Notify(tx userevent.Transaction) ([]*userevent.Transaction, b
 	userTxs := m.M[hex.EncodeToString(tx.From)]
 	if userTxs != nil {
 		userTxs.Notify(tx.Nonce)
-		//userTxs.Nonce = tx.Nonce
-		//userTxs.clearNonces()
 	}
 	return nil, false
 }

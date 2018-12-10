@@ -23,9 +23,11 @@ func NewTimedList() *TxTimedList {
 
 func (list *TxTimedList) Put(txs ...*userevent.Transaction) {
 	list.locker.Lock()
-	list.List = append(list.List, txs...)
 	for _, tx := range txs {
-		list.M[tx.TransactionId()] = true
+		if !list.M[tx.TransactionId()] {
+			list.M[tx.TransactionId()] = true
+			list.List = append(list.List, tx)
+		}
 	}
 	list.locker.Unlock()
 }
