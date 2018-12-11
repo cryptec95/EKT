@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
-
 	"github.com/EducationEKT/EKT/MPTPlus"
 	"github.com/EducationEKT/EKT/core/types"
 	"github.com/EducationEKT/EKT/core/userevent"
@@ -196,6 +196,24 @@ func (header *Header) NewSubTransaction(txs userevent.SubTransactions) bool {
 		}
 	}
 	return true
+}
+
+func (header *Header) ModifyContract(address, data []byte) error {
+	if len(address) != types.ContractAddressLength {
+		return errors.New("invalid contract address")
+	}
+	accountAddr, contractAddr := address[:32], address[32:]
+	account, err := header.GetAccount(accountAddr)
+	if err != nil || account == nil || len(account.Contracts) == 0 {
+		return err
+	}
+	contractAccount, exist := account.Contracts[hex.EncodeToString(contractAddr)]
+	if !exist {
+		return errors.New("invalid contract address")
+	}
+	contractAccount.ContractData.Contract = string(data)
+	account.Contracts[hex.EncodeToString(contractAddr)] = contractAccount
+	return header.StatTree.MustInsert(account.Address, account.ToBytes())
 }
 
 func (header *Header) HandleTx(from, to *types.Account, tx userevent.SubTransaction) bool {
