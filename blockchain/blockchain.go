@@ -129,16 +129,17 @@ func (chain *BlockChain) ValidateBlock(next Block) bool {
 		}
 		log.LogErr(newBlock.GetHeader().TxRoot.MustInsert(tx.TxId(), tx.Bytes()))
 		var receipt *userevent.TransactionReceipt
-		receipt = newBlock.NewTransaction(tx)
 		if len(tx.To) == types.ContractAddressLength {
 			_receipt := receipts[i]
 			if !_receipt.Success {
+				newBlock.GetHeader().CheckFromAndBurnGas(tx)
 				newBlock.Transactions = append(newBlock.Transactions, tx)
 				log.LogErr(newBlock.GetHeader().ReceiptRoot.MustInsert(tx.TxId(), _receipt.Bytes()))
 				newBlock.TransactionReceipts = append(newBlock.TransactionReceipts, _receipt)
 				continue
 			}
 		}
+		receipt = newBlock.NewTransaction(tx)
 		log.LogErr(newBlock.GetHeader().ReceiptRoot.MustInsert(tx.TxId(), receipt.Bytes()))
 		newBlock.Transactions = append(newBlock.Transactions, tx)
 		newBlock.TransactionReceipts = append(newBlock.TransactionReceipts, *receipt)
