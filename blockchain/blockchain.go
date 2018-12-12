@@ -118,7 +118,8 @@ func (chain *BlockChain) NewTransaction(tx *userevent.Transaction) bool {
 func (chain *BlockChain) ValidateBlock(next Block) bool {
 	lastHeader := chain.LastHeader()
 	newBlock := CreateBlock(lastHeader, next.GetHeader().Timestamp, next.Miner)
-	for _, tx := range next.GetTransactions() {
+	receipts := next.GetTxReceipts()
+	for i, tx := range next.GetTransactions() {
 		if chain.Pool.GetTx(tx.TxId()) == nil {
 			if !userevent.ValidateTransaction(tx) {
 				return false
@@ -127,8 +128,19 @@ func (chain *BlockChain) ValidateBlock(next Block) bool {
 			}
 		}
 		log.LogErr(newBlock.GetHeader().TxRoot.MustInsert(tx.TxId(), tx.Bytes()))
-		log.LogErr(newBlock.GetHeader().ReceiptRoot.MustInsert(tx.TxId(), tx.Bytes()))
-		receipt := newBlock.NewTransaction(tx)
+		var receipt *userevent.TransactionReceipt
+		if len(tx.To) == types.ContractAddressLength {
+			_receipt := receipts[i]
+			if !_receipt.Success {
+				newBlock.GetHeader().CheckFromAndBurnGas(tx)
+				newBlock.Transactions = append(newBlock.Transactions, tx)
+				log.LogErr(newBlock.GetHeader().ReceiptRoot.MustInsert(tx.TxId(), _receipt.Bytes()))
+				newBlock.TransactionReceipts = append(newBlock.TransactionReceipts, _receipt)
+				continue
+			}
+		}
+		receipt = newBlock.NewTransaction(tx)
+		log.LogErr(newBlock.GetHeader().ReceiptRoot.MustInsert(tx.TxId(), receipt.Bytes()))
 		newBlock.Transactions = append(newBlock.Transactions, tx)
 		newBlock.TransactionReceipts = append(newBlock.TransactionReceipts, *receipt)
 	}

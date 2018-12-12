@@ -135,6 +135,10 @@ func (block *Block) ContractCall(tx userevent.Transaction) *userevent.Transactio
 	contractAccount := to.Contracts[hex.EncodeToString(toContractAddress)]
 	txs, data, err := _vm.ContractCall(tx, VM_CALL_TIMEOUT)
 	if err != nil {
+		if err == vm.TIMEOUT_ERROR {
+			receipt := userevent.NewTransactionReceipt(tx, false, userevent.FailType_CONTRACT_TIMEOUT)
+			return &receipt
+		}
 		return userevent.ContractRefuseTx(tx)
 	}
 	contractAccount.ContractData.Contract = string(data)
