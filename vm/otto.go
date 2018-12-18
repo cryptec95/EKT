@@ -30,6 +30,7 @@ type Otto struct {
 	// Interrupt is a channel for interrupting the runtime. You can use this to halt a long running execution, for example.
 	// See "Halting Problem" for more information.
 	Interrupt chan func()
+	tx        *userevent.Transaction
 	chain     _interface.VMChain
 	runtime   *_runtime
 	seed      []byte
@@ -77,6 +78,7 @@ func (otto *Otto) ContractCall(tx userevent.Transaction, timeout time.Duration) 
 
 func (otto *Otto) contractCall(tx userevent.Transaction, ch chan *ContractCallResp) {
 	err := otto.LoadContract(tx.To)
+	otto.tx = &tx
 	if err != nil {
 		ch <- NewContractCallResp(nil, nil, err)
 		return
