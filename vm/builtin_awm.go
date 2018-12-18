@@ -103,5 +103,9 @@ func builtinAWM_contract_call(call FunctionCall) Value {
 	if err != nil {
 		return falseValue
 	}
+
+	data := vm.contractData()
+	log.LogErr(vm.chain.ModifyContract(address, data))
+
 	return value
 }

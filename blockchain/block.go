@@ -135,6 +135,10 @@ func (block *Block) ContractCall(tx userevent.Transaction) *userevent.Transactio
 	contractAccount := to.Contracts[hex.EncodeToString(toContractAddress)]
 	txs, data, err := _vm.ContractCall(tx, VM_CALL_TIMEOUT)
 	if err != nil {
+		if err == vm.TIMEOUT_ERROR {
+			receipt := userevent.NewTransactionReceipt(tx, false, userevent.FailType_CONTRACT_TIMEOUT)
+			return &receipt
+		}
 		return userevent.ContractRefuseTx(tx)
 	}
 	contractAccount.ContractData.Contract = string(data)
@@ -277,7 +281,7 @@ func (block *Block) Finish() {
 
 func logErr(err error) {
 	if err != nil {
-		log.Debug("Error while save block, %v", err)
+		log.Debug("error: %v", err)
 	}
 }
 
@@ -302,7 +306,7 @@ func CreateGenesisBlock(accounts []types.Account) Block {
 
 func CreateBlock(last Header, time int64, peer types.Peer) *Block {
 	coinbase, _ := hex.DecodeString(peer.Account)
-	header := NewHeader(last, time, last.CalculateHash(), coinbase)
+	header := NewHeader_V2(last, time, last.CalculateHash(), coinbase)
 	return &Block{
 		Header:              header,
 		Miner:               peer,

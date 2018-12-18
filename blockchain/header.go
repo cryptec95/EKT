@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	"github.com/EducationEKT/EKT/MPTPlus"
@@ -40,19 +41,13 @@ type Header struct {
 }
 
 func (header Header) Equal(peerHeader Header) bool {
-	if header.Version != peerHeader.Version {
-		return false
-	}
-	if header.Version == HEADER_VERSION_MIXED {
-		return header.Height == peerHeader.Height &&
-			header.Timestamp == peerHeader.Timestamp &&
-			header.TotalFee == peerHeader.TotalFee &&
-			bytes.Equal(header.PreviousHash, peerHeader.PreviousHash) &&
-			bytes.Equal(header.Coinbase, peerHeader.Coinbase) &&
-			bytes.Equal(header.TokenTree.Root, peerHeader.TokenTree.Root) &&
-			bytes.Equal(header.StatTree.Root, peerHeader.StatTree.Root)
-	}
-	return bytes.Equal(header.CalculateHash(), peerHeader.CalculateHash())
+	return header.Height == peerHeader.Height &&
+		header.Timestamp == peerHeader.Timestamp &&
+		header.TotalFee == peerHeader.TotalFee &&
+		bytes.Equal(header.PreviousHash, peerHeader.PreviousHash) &&
+		bytes.Equal(header.Coinbase, peerHeader.Coinbase) &&
+		bytes.Equal(header.TokenTree.Root, peerHeader.TokenTree.Root) &&
+		bytes.Equal(header.StatTree.Root, peerHeader.StatTree.Root)
 }
 
 func (header *Header) Bytes() []byte {
@@ -202,6 +197,24 @@ func (header *Header) NewSubTransaction(txs userevent.SubTransactions) bool {
 		}
 	}
 	return true
+}
+
+func (header *Header) ModifyContract(address, data []byte) error {
+	if len(address) != types.ContractAddressLength {
+		return errors.New("invalid contract address")
+	}
+	accountAddr, contractAddr := address[:32], address[32:]
+	account, err := header.GetAccount(accountAddr)
+	if err != nil || account == nil || len(account.Contracts) == 0 {
+		return err
+	}
+	contractAccount, exist := account.Contracts[hex.EncodeToString(contractAddr)]
+	if !exist {
+		return errors.New("invalid contract address")
+	}
+	contractAccount.ContractData.Contract = string(data)
+	account.Contracts[hex.EncodeToString(contractAddr)] = contractAccount
+	return header.StatTree.MustInsert(account.Address, account.ToBytes())
 }
 
 func (header *Header) HandleTx(from, to *types.Account, tx userevent.SubTransaction) bool {

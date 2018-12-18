@@ -29,11 +29,11 @@ var (
 type Otto struct {
 	// Interrupt is a channel for interrupting the runtime. You can use this to halt a long running execution, for example.
 	// See "Halting Problem" for more information.
-	Interrupt   chan func()
-	chainReader _interface.ChainReader
-	runtime     *_runtime
-	seed        []byte
-	rc          int // random count
+	Interrupt chan func()
+	chain     _interface.VMChain
+	runtime   *_runtime
+	seed      []byte
+	rc        int // random count
 }
 
 type ContractData struct {
@@ -181,16 +181,16 @@ func (otto *Otto) initContract(code []byte, ch chan *ContractData) {
 	ch <- NewContractData(&contractData, err)
 }
 
-func NewVM(chainReader _interface.ChainReader) *Otto {
+func NewVM(chain _interface.VMChain) *Otto {
 	self := &Otto{
 		runtime: newContext(),
 		rc:      0,
 	}
 	self.runtime.otto = self
 	self.runtime.traceLimit = 10
-	self.seed = chainReader.GetParent()
-	self.chainReader = chainReader
-	self.runtime.timestamp = chainReader.GetTimestamp()
+	self.seed = chain.GetParent()
+	self.chain = chain
+	self.runtime.timestamp = chain.GetTimestamp()
 	self.Set("console", self.runtime.newConsole())
 
 	self.SetRandomSource(func(vm *Otto) float64 {
@@ -253,7 +253,7 @@ func (otto *Otto) LoadContract(addr []byte) error {
 	accountAddr := addr[:32]
 	contractAddr := addr[32:]
 
-	account, err := otto.chainReader.GetAccount(accountAddr)
+	account, err := otto.chain.GetAccount(accountAddr)
 	if err != nil {
 		return err
 	}
@@ -289,7 +289,7 @@ func (otto *Otto) loadContractWithAccount(account types.ContractAccount) error {
 }
 
 func (otto *Otto) clone() *Otto {
-	return NewVM(otto.chainReader)
+	return NewVM(otto.chain)
 }
 
 // Run will run the given source (parsing it first if necessary), returning the resulting value and error (if any)

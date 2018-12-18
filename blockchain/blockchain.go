@@ -69,14 +69,14 @@ func (chain *BlockChain) PackTransaction(clog *ctxlog.ContextLog, block *Block) 
 				}
 				for _, tx := range txs {
 					receipt := block.NewTransaction(*tx)
-					block.Header.TxRoot.MustInsert(tx.TxId(), tx.Bytes())
-					block.Header.ReceiptRoot.MustInsert(tx.TxId(), receipt.Bytes())
+					log.LogErr(block.Header.TxRoot.MustInsert(tx.TxId(), tx.Bytes()))
+					log.LogErr(block.Header.ReceiptRoot.MustInsert(tx.TxId(), receipt.Bytes()))
 					receiptDetail := userevent.ReceiptDetail{
 						Receipt:     *receipt,
 						BlockNumber: block.GetHeader().Height,
 						Index:       int64(numTx),
 					}
-					db.GetDBInst().Set(schema.GetReceiptByTxHashKey(chain.ChainId, tx.TransactionId()), receiptDetail.Bytes())
+					log.LogErr(db.GetDBInst().Set(schema.GetReceiptByTxHashKey(chain.ChainId, tx.TransactionId()), receiptDetail.Bytes()))
 					block.Transactions = append(block.Transactions, *tx)
 					block.TransactionReceipts = append(block.TransactionReceipts, *receipt)
 				}
@@ -118,7 +118,8 @@ func (chain *BlockChain) NewTransaction(tx *userevent.Transaction) bool {
 func (chain *BlockChain) ValidateBlock(next Block) bool {
 	lastHeader := chain.LastHeader()
 	newBlock := CreateBlock(lastHeader, next.GetHeader().Timestamp, next.Miner)
-	for _, tx := range next.GetTransactions() {
+	receipts := next.GetTxReceipts()
+	for i, tx := range next.GetTransactions() {
 		if chain.Pool.GetTx(tx.TxId()) == nil {
 			if !userevent.ValidateTransaction(tx) {
 				return false
@@ -126,7 +127,20 @@ func (chain *BlockChain) ValidateBlock(next Block) bool {
 				logErr(db.GetDBInst().Set(tx.TxId(), tx.Bytes()))
 			}
 		}
-		receipt := newBlock.NewTransaction(tx)
+		log.LogErr(newBlock.GetHeader().TxRoot.MustInsert(tx.TxId(), tx.Bytes()))
+		var receipt *userevent.TransactionReceipt
+		if len(tx.To) == types.ContractAddressLength {
+			_receipt := receipts[i]
+			if !_receipt.Success {
+				newBlock.GetHeader().CheckFromAndBurnGas(tx)
+				newBlock.Transactions = append(newBlock.Transactions, tx)
+				log.LogErr(newBlock.GetHeader().ReceiptRoot.MustInsert(tx.TxId(), _receipt.Bytes()))
+				newBlock.TransactionReceipts = append(newBlock.TransactionReceipts, _receipt)
+				continue
+			}
+		}
+		receipt = newBlock.NewTransaction(tx)
+		log.LogErr(newBlock.GetHeader().ReceiptRoot.MustInsert(tx.TxId(), receipt.Bytes()))
 		newBlock.Transactions = append(newBlock.Transactions, tx)
 		newBlock.TransactionReceipts = append(newBlock.TransactionReceipts, *receipt)
 	}
