@@ -10,7 +10,7 @@ type IClient interface {
 	// block
 	GetHeaderByHeight(height int64) *blockchain.Header
 	GetBlockByHeight(height int64) *blockchain.Block
-	GetLastBlock(peer types.Peer) *blockchain.Header
+	GetLastBlock() *blockchain.Header
 	GetHeaderByHash(hash []byte) *blockchain.Header
 
 	// vote

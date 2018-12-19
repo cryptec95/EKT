@@ -79,7 +79,7 @@ func (client Client) GetValueByHash(hash []byte) []byte {
 	return nil
 }
 
-func (client Client) GetLastBlock(peer types.Peer) *blockchain.Header {
+func (client Client) GetLastBlock() *blockchain.Header {
 	for _, peer := range client.peers {
 		url := util.StringJoint("http://", peer.Address, ":", strconv.Itoa(int(peer.Port)), "/block/api/last")
 		body, err := util.HttpGet(url)
