@@ -8,6 +8,7 @@ import (
 	"github.com/EducationEKT/EKT/core/types"
 	"github.com/EducationEKT/EKT/core/userevent"
 	"github.com/EducationEKT/EKT/crypto"
+	"github.com/EducationEKT/EKT/ektclient"
 	"github.com/EducationEKT/EKT/param"
 	"github.com/EducationEKT/EKT/util"
 
@@ -15,7 +16,8 @@ import (
 )
 
 func init() {
-	DelegateNode = param.MainNet
+	DelegateNode = param.LocalNet
+	ektClient = ektclient.NewClient(DelegateNode)
 }
 
 const (
@@ -24,6 +26,7 @@ const (
 	NullResp      = `{"status": 0, "resp": {}}`
 )
 
+var ektClient ektclient.IClient
 var DelegateNode []types.Peer
 
 type GoMobileParam struct {
@@ -100,7 +103,9 @@ func sendTransaction(param GoMobileParam) string {
 	address := types.FromPubKeyToAddress(pubKey)
 
 	transaction.From = address
-	userevent.SignTransaction(&transaction, privateKey)
+	if err = userevent.SignTransaction(&transaction, privateKey); err != nil {
+		return InternalError
+	}
 	success := _sendTx(transaction)
 	return buildResp(0, map[string]interface{}{
 		"success": success,
