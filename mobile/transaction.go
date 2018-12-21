@@ -2,6 +2,8 @@ package mobile
 
 import (
 	"encoding/hex"
+	"math"
+	"strconv"
 	"strings"
 	"time"
 
@@ -10,24 +12,16 @@ import (
 	"github.com/EducationEKT/EKT/crypto"
 )
 
-func SendTrasaction(to, tokenAddr, data, privateKey string, amount int64) string {
-	tx := buildTransaction(to, tokenAddr, data, privateKey, amount)
-	if tx == nil {
+func BuildTransaction(to, tokenAddr, data, privateKey, amt string, accuracy, nonce, fee int64) string {
+	f, err := strconv.ParseFloat(amt, 64)
+	if err != nil {
 		return buildResp(-400, map[string]interface{}{})
 	}
-	err := ektClient.SendTransaction(*tx)
-	if err != nil {
-		return buildResp(-500, map[string]interface{}{
-			"err": err,
-		})
+	amount := int64(f * math.Pow10(int(accuracy)))
+	if amount < 0 {
+		return buildResp(-400, map[string]interface{}{})
 	}
-	return buildResp(0, map[string]interface{}{
-		"txId": tx.TransactionId(),
-	})
-}
-
-func BuildTransaction(to, tokenAddr, data, privateKey string, amount int64) string {
-	tx := buildTransaction(to, tokenAddr, data, privateKey, amount)
+	tx := buildTransaction(to, tokenAddr, data, privateKey, amount, nonce, fee)
 	if tx == nil {
 		return buildResp(-400, map[string]interface{}{})
 	}
@@ -36,7 +30,7 @@ func BuildTransaction(to, tokenAddr, data, privateKey string, amount int64) stri
 	})
 }
 
-func buildTransaction(to, tokenAddr, data, privateKey string, amount int64) *userevent.Transaction {
+func buildTransaction(to, tokenAddr, data, privateKey string, amount, nonce, fee int64) *userevent.Transaction {
 	if strings.HasPrefix(privateKey, "0x") {
 		privateKey = privateKey[2:]
 	}
@@ -58,8 +52,6 @@ func buildTransaction(to, tokenAddr, data, privateKey string, amount int64) *use
 		return nil
 	}
 
-	nonce := ektClient.GetAccountNonce(hex.EncodeToString(address))
-	fee := ektClient.GetSuggestionFee()
 	timestamp := time.Now().UnixNano() / 1e6
 
 	if amount < 0 {
