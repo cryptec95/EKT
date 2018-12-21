@@ -39,11 +39,11 @@ func Str2Int64(str string, accuracy int) int64 {
 	right := 0
 	if len(arr) == 2 {
 		str := arr[1]
-		if len(str) > 8 {
+		if len(str) > accuracy {
 			return -1
 		}
-		if len(str) < 8 {
-			str = strings.Join([]string{str, strings.Repeat("0", 8-len(str))}, "")
+		if len(str) < accuracy {
+			str = strings.Join([]string{str, strings.Repeat("0", accuracy-len(str))}, "")
 		}
 		r, err := strconv.Atoi(str)
 		if err != nil {
