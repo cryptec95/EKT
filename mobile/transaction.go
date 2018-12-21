@@ -2,22 +2,17 @@ package mobile
 
 import (
 	"encoding/hex"
-	"math"
-	"strconv"
 	"strings"
 	"time"
 
 	"github.com/EducationEKT/EKT/core/types"
 	"github.com/EducationEKT/EKT/core/userevent"
 	"github.com/EducationEKT/EKT/crypto"
+	"github.com/EducationEKT/EKT/util"
 )
 
 func BuildTransaction(to, tokenAddr, data, privateKey, amt string, accuracy, nonce, fee int64) string {
-	f, err := strconv.ParseFloat(amt, 64)
-	if err != nil {
-		return buildResp(-400, map[string]interface{}{})
-	}
-	amount := int64(f * math.Pow10(int(accuracy)))
+	amount := util.Str2Int64(amt, int(accuracy))
 	if amount < 0 {
 		return buildResp(-400, map[string]interface{}{})
 	}
