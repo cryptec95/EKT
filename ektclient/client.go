@@ -32,8 +32,16 @@ func (client Client) GetHeaderByHeight(height int64) *blockchain.Header {
 		if err != nil {
 			continue
 		}
-		if header := blockchain.FromBytes2Header(body); header != nil {
-			return header
+		resp := struct {
+			Status int               `json:"status"`
+			Msg    string            `json:"msg"`
+			Header blockchain.Header `json:"result"`
+		}{}
+		err = json.Unmarshal(body, &resp)
+		if err != nil || resp.Status != 0 {
+			continue
+		} else {
+			return &resp.Header
 		}
 	}
 	return nil
@@ -46,10 +54,16 @@ func (client Client) GetBlockByHeight(height int64) *blockchain.Block {
 		if err != nil {
 			continue
 		}
-		if block := blockchain.GetBlockFromBytes(body); block == nil || len(block.Hash) == 0 {
+		resp := struct {
+			Status int              `json:"status"`
+			Msg    string           `json:"msg"`
+			Block  blockchain.Block `json:"result"`
+		}{}
+		err = json.Unmarshal(body, &resp)
+		if err != nil || resp.Status != 0 {
 			continue
 		} else {
-			return block
+			return &resp.Block
 		}
 	}
 	return nil
@@ -59,11 +73,7 @@ func (client Client) GetHeaderByHash(hash []byte) *blockchain.Header {
 	for _, peer := range client.peers {
 		data, err := peer.GetDBValue(hex.EncodeToString(hash))
 		if err == nil && bytes.Equal(crypto.Sha3_256(data), hash) {
-			var header blockchain.Header
-			err := json.Unmarshal(data, &header)
-			if err == nil {
-				return &header
-			}
+			return blockchain.FromBytes2Header(data)
 		}
 	}
 	return nil
@@ -86,8 +96,16 @@ func (client Client) GetLastBlock() *blockchain.Header {
 		if err != nil {
 			continue
 		}
-		if block := blockchain.FromBytes2Header(body); block != nil {
-			return block
+		resp := struct {
+			Status int               `json:"status"`
+			Msg    string            `json:"msg"`
+			Header blockchain.Header `json:"result"`
+		}{}
+		err = json.Unmarshal(body, &resp)
+		if err != nil || resp.Status != 0 {
+			continue
+		} else {
+			return &resp.Header
 		}
 	}
 	return nil
