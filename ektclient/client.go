@@ -54,16 +54,9 @@ func (client Client) GetBlockByHeight(height int64) *blockchain.Block {
 		if err != nil {
 			continue
 		}
-		resp := struct {
-			Status int              `json:"status"`
-			Msg    string           `json:"msg"`
-			Block  blockchain.Block `json:"result"`
-		}{}
-		err = json.Unmarshal(body, &resp)
-		if err != nil || resp.Status != 0 {
-			continue
-		} else {
-			return &resp.Block
+		block := blockchain.GetBlockFromBytes(body)
+		if block != nil {
+			return block
 		}
 	}
 	return nil
