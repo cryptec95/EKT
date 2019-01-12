@@ -319,7 +319,7 @@ func (header *Header) CheckFromAndBurnGas(tx userevent.Transaction) bool {
 		return false
 	}
 
-	if len(tx.To) != 0 && len(tx.To) != types.AccountAddressLength && len(tx.To) != types.ContractAddressLength {
+	if len(tx.To) != 0 && len(tx.To) != types.AccountAddressLength && len(tx.To) != types.ContractAddressLength && len(tx.To) != types.ContractAddressLength+1 {
 		return false
 	}
 	if tx.Amount < 0 {
