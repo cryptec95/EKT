@@ -55,7 +55,7 @@ func (client Client) GetBlockByHeight(height int64) *blockchain.Block {
 			continue
 		}
 		block := blockchain.GetBlockFromBytes(body)
-		if block != nil {
+		if block != nil && block.GetHeader() != nil && block.GetHeader().Height == height {
 			return block
 		}
 	}
