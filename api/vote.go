@@ -2,9 +2,10 @@ package api
 
 import (
 	"encoding/json"
-	"github.com/EducationEKT/EKT/node"
 
 	"github.com/EducationEKT/EKT/blockchain"
+	"github.com/EducationEKT/EKT/node"
+
 	"github.com/EducationEKT/xserver/x_err"
 	"github.com/EducationEKT/xserver/x_http/x_req"
 	"github.com/EducationEKT/xserver/x_http/x_resp"
@@ -18,7 +19,7 @@ func init() {
 }
 
 func voteBlock(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
-	var vote blockchain.BlockVote
+	var vote blockchain.PeerBlockVote
 	err := json.Unmarshal(req.Body, &vote)
 	if err != nil {
 		return x_resp.Return(nil, err)
@@ -26,7 +27,7 @@ func voteBlock(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
 	if !vote.Validate() {
 		return x_resp.Return(false, nil)
 	}
-	go node.VoteFromPeer(vote)
+	node.VoteFromPeer(vote)
 	return nil, nil
 }
 

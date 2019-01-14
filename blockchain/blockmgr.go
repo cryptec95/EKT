@@ -82,12 +82,12 @@ func (manager *BlockManager) CheckHeightInterval(height, interval int64) bool {
 	return t.(int64)+interval/1e6 < time.Now().UnixNano()/1e6
 }
 
-func (manager *BlockManager) SetBlockStatusByHeight(height, nanoSecond int64) {
-	manager.HeightManager.Store(height, nanoSecond)
+func (manager *BlockManager) SetBlockStatusByHeight(height, ms int64) {
+	manager.HeightManager.Store(height, ms)
 }
 
 //将指定区块插入，默认是100
-func (manager *BlockManager) Insert(block Block) {
+func (manager *BlockManager) Insert(block *Block) {
 	hash := hex.EncodeToString(block.Hash)
 	if _, exist := manager.Blocks.Load(hash); exist {
 		return
@@ -102,6 +102,6 @@ func (manager *BlockManager) GetBlock(hash []byte) *Block {
 	if !exist {
 		return nil
 	}
-	block := b.(Block)
-	return &block
+	block := b.(*Block)
+	return block
 }

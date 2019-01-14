@@ -1,11 +1,10 @@
 package encapdb
 
 import (
-	"encoding/json"
 	"github.com/EducationEKT/EKT/blockchain"
 	"github.com/EducationEKT/EKT/core/types"
 	"github.com/EducationEKT/EKT/db"
-	"github.com/EducationEKT/EKT/encapdb/schema"
+	"github.com/EducationEKT/EKT/schema"
 )
 
 func GetBlockByHeight(chainId, height int64) *blockchain.Block {
@@ -16,10 +15,10 @@ func GetBlockByHeight(chainId, height int64) *blockchain.Block {
 	}
 	return blockchain.GetBlockFromBytes(data)
 }
+
 func SetBlockByHeight(chainId, height int64, block blockchain.Block) {
 	key := schema.GetBlockByHeightKey(chainId, height)
-	data, _ := json.Marshal(block)
-	db.GetDBInst().Set(key, data)
+	db.GetDBInst().Set(key, block.Bytes())
 }
 
 func GetHeaderByHeight(chainId, height int64) *blockchain.Header {
@@ -32,7 +31,7 @@ func GetHeaderByHeight(chainId, height int64) *blockchain.Header {
 }
 
 func SetHeaderByHeight(chainId, height int64, header blockchain.Header) error {
-	hash := header.CaculateHash()
+	hash := header.CalculateHash()
 	db.GetDBInst().Set(hash, header.Bytes())
 	key := schema.GetHeaderByHeightKey(chainId, height)
 	return db.GetDBInst().Set(key, hash)
@@ -57,6 +56,6 @@ func GetLastHeader(chainId int64) *blockchain.Header {
 
 func SetLastHeader(chainId int64, header blockchain.Header) error {
 	key := schema.LastHeaderKey(chainId)
-	db.GetDBInst().Set(header.CaculateHash(), header.Bytes())
-	return db.GetDBInst().Set(key, header.CaculateHash())
+	db.GetDBInst().Set(header.CalculateHash(), header.Bytes())
+	return db.GetDBInst().Set(key, header.CalculateHash())
 }

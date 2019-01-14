@@ -3,6 +3,7 @@ package main
 import (
 	"github.com/EducationEKT/EKT/cmd/ecli/cmd"
 	"github.com/EducationEKT/EKT/cmd/ecli/param"
+
 	"github.com/spf13/cobra"
 )
 
@@ -11,7 +12,7 @@ var (
 )
 
 func init() {
-	cmds = append(cmds, cmd.TransactionCmd, cmd.AccountCmd, cmd.TokenCommand)
+	cmds = append(cmds, cmd.TransactionCmd, cmd.AccountCmd, cmd.ContractCmd)
 }
 
 func main() {

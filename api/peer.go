@@ -2,7 +2,9 @@ package api
 
 import (
 	"fmt"
+
 	"github.com/EducationEKT/EKT/conf"
+	"github.com/EducationEKT/EKT/log"
 	"github.com/EducationEKT/EKT/param"
 	"github.com/EducationEKT/EKT/util"
 
@@ -35,7 +37,10 @@ func broadcast(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
 		for _, peer := range param.MainChainDelegateNode {
 			if !peer.Equal(conf.EKTConfig.Node) {
 				url := fmt.Sprintf(`http://%s:%d%s?broadcast=true`, peer.Address, peer.Port, req.Path)
-				util.HttpPost(url, req.Body)
+				go func() {
+					_, err := util.HttpPost(url, req.Body)
+					log.LogErr(err)
+				}()
 			}
 		}
 	}

@@ -2,7 +2,10 @@ package api
 
 import (
 	"encoding/hex"
+
+	"github.com/EducationEKT/EKT/conf"
 	"github.com/EducationEKT/EKT/node"
+
 	"github.com/EducationEKT/xserver/x_err"
 	"github.com/EducationEKT/xserver/x_http/x_req"
 	"github.com/EducationEKT/xserver/x_http/x_resp"
@@ -12,6 +15,12 @@ import (
 func init() {
 	x_router.Get("/account/api/info", userInfo)
 	x_router.Get("/account/api/nonce", userNonce)
+
+	x_router.Get("/account/api/genesisAccount", genesisAccount)
+}
+
+func genesisAccount(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
+	return x_resp.Return(conf.EKTConfig.GenesisBlockAccounts, nil)
 }
 
 func userInfo(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
@@ -29,6 +38,12 @@ func userInfo(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
 
 func userNonce(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
 	hexAddress := req.MustGetString("address")
+
+	txs := node.GetMainChain().Pool.GetUserTxs(hexAddress)
+	if txs != nil {
+		return x_resp.Return(txs.Nonce, nil)
+	}
+
 	address, err := hex.DecodeString(hexAddress)
 	if err != nil {
 		return x_resp.Return(nil, err)
@@ -39,11 +54,6 @@ func userNonce(req *x_req.XReq) (*x_resp.XRespContainer, *x_err.XErr) {
 		return x_resp.Return(nil, err)
 	}
 	nonce := account.GetNonce()
-
-	txs := node.GetMainChain().Pool.GetReadyEvents(hexAddress)
-	if len(txs) > 0 {
-		nonce = txs[len(txs)-1].GetNonce()
-	}
 
 	return x_resp.Return(nonce, nil)
 }

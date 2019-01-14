@@ -5,16 +5,19 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"os"
+	"strconv"
+	"time"
+
 	"github.com/EducationEKT/EKT/cmd/ecli/param"
 	"github.com/EducationEKT/EKT/core/types"
 	"github.com/EducationEKT/EKT/core/userevent"
 	"github.com/EducationEKT/EKT/crypto"
 	"github.com/EducationEKT/EKT/util"
+
 	"github.com/EducationEKT/xserver/x_http/x_resp"
+
 	"github.com/spf13/cobra"
-	"os"
-	"strconv"
-	"time"
 )
 
 var TransactionCmd *cobra.Command
@@ -72,9 +75,12 @@ func SendTransaction(cmd *cobra.Command, args []string) {
 		fmt.Println("Error address")
 		os.Exit(-1)
 	}
+	fmt.Print("Input what you want to say: ")
+	input.Scan()
+	data := input.Text()
 	nonce := getAccountNonce(hex.EncodeToString(from))
-	tx := userevent.NewTransaction(from, to, time.Now().UnixNano()/1e6, int64(amount), 510000, nonce, "", tokenAddress)
-	userevent.SignUserEvent(tx, privKey)
+	tx := userevent.NewTransaction(from, to, time.Now().UnixNano()/1e6, int64(amount), 0, nonce, data, tokenAddress)
+	userevent.SignTransaction(tx, privKey)
 	sendTransaction(*tx)
 }
 
@@ -104,15 +110,15 @@ func BenchTest(cmd *cobra.Command, args []string) {
 	}
 	amount := 1000000
 	nonce := getAccountNonce(hex.EncodeToString(from))
-	tx := userevent.NewTransaction(from, to, time.Now().UnixNano()/1e6, int64(amount), 510000, nonce, "", "")
+	tx := userevent.NewTransaction(from, to, time.Now().UnixNano()/1e6, int64(amount), 0, nonce, "", "")
 	testTPS(tx, privKey)
 }
 
 func testTPS(tx *userevent.Transaction, priv []byte) {
-	max, min := tx.Nonce+2000, tx.Nonce
+	max, min := tx.Nonce+20000, tx.Nonce
 	for nonce := max; nonce >= min; nonce-- {
 		tx.Nonce = int64(nonce)
-		userevent.SignUserEvent(tx, priv)
+		userevent.SignTransaction(tx, priv)
 		sendTransaction(*tx)
 		fmt.Println(tx.String())
 	}
@@ -146,7 +152,7 @@ func getAccountNonce(address string) int64 {
 				if ok {
 					return int64(nonce) + 1
 				} else {
-					panic("Can not get nonce from remote peer")
+					return -1
 				}
 			}
 		}

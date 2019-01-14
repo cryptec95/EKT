@@ -7,5 +7,8 @@ func InitEKTDB(filePath string) {
 }
 
 func GetDBInst() IKVDatabase {
+	if EktDB == nil {
+		InitEKTDB("~/.cache/EKT/db")
+	}
 	return EktDB
 }

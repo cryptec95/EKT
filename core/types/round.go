@@ -1,12 +1,20 @@
 package types
 
 type Round struct {
-	CurrentIndex int    `json:"currentIndex"` // default -1
-	Peers        []Peer `json:"peers"`
+	Peers []Peer `json:"peers"`
 }
 
-func (round *Round) UpdateIndex(miner string) {
-	round.CurrentIndex = round.IndexOf(miner)
+func NewRound(peers Peers) *Round {
+	return &Round{
+		Peers: peers,
+	}
+}
+
+func (round Round) Distance(previous, my string) int {
+	index1 := round.IndexOf(previous)
+	index2 := round.IndexOf(my)
+	distance := (index2 - index1 + round.Len()) % round.Len()
+	return distance
 }
 
 func (round Round) IndexOf(miner string) int {
@@ -20,4 +28,10 @@ func (round Round) IndexOf(miner string) int {
 
 func (round Round) Len() int {
 	return len(round.Peers)
+}
+
+func (round Round) Clone() Round {
+	return Round{
+		Peers: round.Peers,
+	}
 }

@@ -1,12 +1,12 @@
 package types
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
-
-	"bytes"
-	"github.com/EducationEKT/EKT/util"
 	"strings"
+
+	"github.com/EducationEKT/EKT/util"
 )
 
 type Peer struct {

@@ -1,12 +1,11 @@
 package MPTPlus
 
 import (
+	"bytes"
 	"encoding/hex"
 	"fmt"
 	"sort"
-	"sync"
 
-	"bytes"
 	"github.com/EducationEKT/EKT/core/types"
 	"github.com/EducationEKT/EKT/db"
 )
@@ -33,7 +32,6 @@ type TrieNode struct {
 }
 
 type MTP struct {
-	Lock *sync.RWMutex
 	Root types.HexBytes
 	DB   db.IKVDatabase
 }
@@ -42,6 +40,7 @@ func (mtp *MTP) UnmarshalJSON(data []byte) error {
 	data = data[:len(data)-1][1:]
 	bytes, err := hex.DecodeString(string(data))
 	mtp.Root = bytes
+	mtp.DB = db.GetDBInst()
 	return err
 }
 
@@ -50,7 +49,19 @@ func (mtp MTP) MarshalJSON() ([]byte, error) {
 }
 
 func MTP_Tree(db db.IKVDatabase, root []byte) *MTP {
-	return &MTP{DB: db, Root: root, Lock: &sync.RWMutex{}}
+	trie := &MTP{DB: db, Root: root}
+	if len(root) != 0 {
+		trie.Root = root
+	} else {
+		node := TrieNode{
+			Root:      true,
+			Leaf:      false,
+			PathValue: nil,
+			Sons:      *new(SortedSon),
+		}
+		trie.Root, _ = trie.SaveNode(node)
+	}
+	return trie
 }
 
 func NewMTP(db db.IKVDatabase) *MTP {
@@ -95,7 +106,7 @@ func (node *TrieNode) AddSon(hash, pathValue []byte) {
 		node.Sons = *new(SortedSon)
 	}
 	for _, son := range node.Sons {
-		if bytes.EqualFold(son.PathValue, pathValue) {
+		if bytes.Equal(son.PathValue, pathValue) {
 			node.DeleteSon(pathValue)
 		}
 	}
@@ -108,7 +119,7 @@ func (node *TrieNode) DeleteSon(pathValue []byte) {
 		return
 	}
 	for i, son := range node.Sons {
-		if bytes.EqualFold(son.PathValue[:], pathValue) {
+		if bytes.Equal(son.PathValue[:], pathValue) {
 			node.Sons = append(node.Sons[:i], node.Sons[i+1:]...)
 		}
 	}

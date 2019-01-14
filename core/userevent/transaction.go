@@ -9,14 +9,19 @@ import (
 
 	"github.com/EducationEKT/EKT/core/types"
 	"github.com/EducationEKT/EKT/crypto"
-	"github.com/EducationEKT/EKT/db"
 )
 
 const (
 	FailType_SUCCESS = iota
-	FailType_NO_GAS
-	FailType_Invalid_NONCE
-	FailType_NO_ENOUGH_AMOUNT
+	FailType_OUT_OF_GAS
+	FailType_CHECK_FAIL
+	FailType_CONTRACT_ERROR
+	FailType_INVALID_ADDRESS
+	FailType_INVALID_CONTRACT_ADDRESS
+	FailType_INIT_CONTRACT_ACCOUNT_FAIL
+	FailType_CHECK_CONTRACT_SUBTX_ERROR
+	FailType_CONTRACT_TIMEOUT
+	FailType_CONTRACT_UPGRADE_REFUSED
 )
 
 type Transactions []Transaction
@@ -32,20 +37,80 @@ type Transaction struct {
 	Data         string         `json:"data"`
 	TokenAddress string         `json:"tokenAddress"`
 	Sign         types.HexBytes `json:"sign"`
+
+	Additional string `json:"additional"`
 }
+
+type TransactionCore struct {
+	From         types.HexBytes `json:"from"`
+	To           types.HexBytes `json:"to"`
+	Amount       int64          `json:"amount"`
+	Fee          int64          `json:"fee"`
+	Nonce        int64          `json:"nonce"`
+	Data         string         `json:"data"`
+	TokenAddress string         `json:"tokenAddress"`
+}
+
+type Transaction_V1 struct {
+	From         types.HexBytes `json:"from"`
+	To           types.HexBytes `json:"to"`
+	TimeStamp    int64          `json:"time"` // UnixTimeStamp
+	Amount       int64          `json:"amount"`
+	Fee          int64          `json:"fee"`
+	Nonce        int64          `json:"nonce"`
+	Data         string         `json:"data"`
+	TokenAddress string         `json:"tokenAddress"`
+	Sign         types.HexBytes `json:"sign"`
+}
+
+type Transaction_V2 struct {
+	From         types.HexBytes `json:"from"`
+	To           types.HexBytes `json:"to"`
+	TimeStamp    int64          `json:"time"` // UnixTimeStamp
+	Amount       int64          `json:"amount"`
+	Fee          int64          `json:"fee"`
+	Nonce        int64          `json:"nonce"`
+	Data         string         `json:"data"`
+	TokenAddress string         `json:"tokenAddress"`
+	Sign         types.HexBytes `json:"sign"`
+
+	Additional string `json:"additional"`
+}
+
+type Transaction_V3 struct {
+	txData     TransactionCore `json:"txData"`
+	Sign       types.HexBytes  `json:"sign"`
+	Additional string          `json:"additional"`
+}
+
+type SubTransaction struct {
+	Parent       types.HexBytes `json:"parent"`
+	From         types.HexBytes `json:"from"`
+	To           types.HexBytes `json:"to"`
+	Amount       int64          `json:"amount"`
+	Data         string         `json:"data"`
+	TokenAddress string         `json:"tokenAddress"`
+}
+
+func NewSubTransaction(parent, from, to []byte, amount int64, data string, tokenAddress string) *SubTransaction {
+	return &SubTransaction{
+		Parent:       parent,
+		From:         from,
+		To:           to,
+		Amount:       amount,
+		Data:         data,
+		TokenAddress: tokenAddress,
+	}
+}
+
+type SubTransactions []SubTransaction
 
 type TransactionReceipt struct {
-	TxId     types.HexBytes `json:"txId"`
-	Fee      int64          `json:"fee"`
-	Success  bool           `json:"success"`
-	FailType int            `json:"failType"`
-}
-
-type UserEventResult struct {
-	EventId string `json:"txId"`
-	Fee     int64  `json:"fee"`
-	Success bool   `json:"success"`
-	FailMsg string `json:"failMsg"`
+	TxId            types.HexBytes  `json:"txId"`
+	Fee             int64           `json:"fee"`
+	Success         bool            `json:"success"`
+	SubTransactions SubTransactions `json:"subTransactions"`
+	FailType        int             `json:"failType"`
 }
 
 func NewTransaction(from, to []byte, timestamp, amount, fee, nonce int64, data, tokenAddress string) *Transaction {
@@ -70,22 +135,18 @@ func NewTransactionReceipt(tx Transaction, success bool, failType int) Transacti
 	}
 }
 
-func NewUserEventResult(event IUserEvent, fee int64, success bool, failMessage string) *UserEventResult {
-	return &UserEventResult{
-		EventId: event.EventId(),
-		Fee:     fee,
-		Success: success,
-		FailMsg: failMessage,
-	}
+func ContractRefuseTx(tx Transaction) *TransactionReceipt {
+	receipt := NewTransactionReceipt(tx, false, FailType_CONTRACT_ERROR)
+	subTx := NewSubTransaction(tx.TxId(), tx.To, tx.From, tx.Amount, "contract refused", tx.TokenAddress)
+	subTransactions := make(SubTransactions, 0)
+	subTransactions = append(subTransactions, *subTx)
+	receipt.SubTransactions = subTransactions
+	return &receipt
 }
 
 func (receipt1 TransactionReceipt) EqualsTo(receipt2 TransactionReceipt) bool {
 	return receipt1.Fee == receipt2.Fee && receipt1.Success == receipt2.Success &&
-		receipt1.FailType == receipt2.FailType && bytes.EqualFold(receipt1.TxId, receipt2.TxId)
-}
-
-func (tx Transaction) Type() string {
-	return TYPE_USEREVENT_TRANSACTION
+		receipt1.FailType == receipt2.FailType && bytes.Equal(receipt1.TxId, receipt2.TxId)
 }
 
 func (tx Transaction) GetNonce() int64 {
@@ -112,40 +173,6 @@ func (tx Transaction) GetTo() []byte {
 	return tx.To
 }
 
-func (tx Transaction) SetFrom(from []byte) {
-	tx.From = from
-}
-
-func (tx Transaction) EventId() string {
-	return tx.TransactionId()
-}
-
-func GetTransaction(txId []byte) *Transaction {
-	txData, err := db.GetDBInst().Get(txId)
-	if err != nil {
-		return nil
-	}
-	return FromBytesToTransaction(txData)
-}
-
-func FromBytesToTransaction(data []byte) *Transaction {
-	var tx Transaction
-	err := json.Unmarshal(data, &tx)
-	if err != nil {
-		return nil
-	}
-	return &tx
-}
-
-func (usereventResult *UserEventResult) ToBytes() []byte {
-	data, _ := json.Marshal(usereventResult)
-	return data
-}
-
-func (usereventResult *UserEventResult) TxResult() (bool, string) {
-	return usereventResult.Success, usereventResult.FailMsg
-}
-
 func (transactions Transactions) Len() int {
 	return len(transactions)
 }
@@ -163,14 +190,38 @@ func (transactions Transactions) Bytes() []byte {
 	return data
 }
 
+func (transactions Transactions) QuickInsert(transaction Transaction) Transactions {
+	if len(transactions) == 0 {
+		return append(transactions, transaction)
+	}
+	if transaction.GetNonce() < transactions[0].GetNonce() {
+		list := make(Transactions, 0)
+		list = append(list, transaction)
+		list = append(list, transactions...)
+		return list
+	}
+	if transaction.GetNonce() > transactions[len(transactions)-1].GetNonce() {
+		return append(transactions, transaction)
+	}
+	for i := 0; i < len(transactions)-1; i++ {
+		if transactions[i].GetNonce() < transaction.GetNonce() && transaction.GetNonce() < transactions[i+1].GetNonce() {
+			list := make(Transactions, 0)
+			list = append(list, transactions[:i+1]...)
+			list = append(list, transaction)
+			list = append(list, transactions[i+1:]...)
+			return list
+		}
+	}
+	return transactions
+}
+
 func (receipts Receipts) Bytes() []byte {
 	data, _ := json.Marshal(receipts)
 	return data
 }
 
 func (tx *Transaction) TransactionId() string {
-	txData, _ := json.Marshal(tx)
-	return hex.EncodeToString(crypto.Sha3_256(txData))
+	return hex.EncodeToString(tx.TxId())
 }
 
 func (tx *Transaction) TxId() []byte {
@@ -185,5 +236,10 @@ func (tx *Transaction) String() string {
 
 func (tx Transaction) Bytes() []byte {
 	data, _ := json.Marshal(tx)
+	return data
+}
+
+func (receipt TransactionReceipt) Bytes() []byte {
+	data, _ := json.Marshal(receipt)
 	return data
 }

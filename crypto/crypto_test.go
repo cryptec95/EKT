@@ -24,7 +24,7 @@ func TestGenerateKeyPair(t *testing.T) {
 
 	data2 := Sha3_256([]byte("123456"))
 	sign2, err := Crypto(data2, priv)
-	if pubKey2, err := RecoverPubKey(data2, sign2); err == nil && bytes.EqualFold(pubKey2, pub) {
+	if pubKey2, err := RecoverPubKey(data2, sign2); err == nil && bytes.Equal(pubKey2, pub) {
 		fmt.Printf("recovered public key2: %s \n", hex.EncodeToString(pubKey2))
 	} else {
 		fmt.Printf("recovered public key2: %s \n", hex.EncodeToString(pubKey2))

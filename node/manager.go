@@ -1,13 +1,22 @@
 package node
 
 import (
+	"encoding/hex"
+	"strings"
+
 	"github.com/EducationEKT/EKT/blockchain"
 	"github.com/EducationEKT/EKT/conf"
+	"github.com/EducationEKT/EKT/core/types"
+	"github.com/EducationEKT/EKT/crypto"
+	"github.com/EducationEKT/EKT/ctxlog"
+	"github.com/EducationEKT/EKT/param"
 )
 
 const (
 	NODE_ENV_FULL_SYNC = "full"
 	NODE_ENV_DELEGETE  = "delegate"
+	FORK_ENV           = "fork"
+	Adaptive           = "adaptive"
 )
 
 var fullNode Node
@@ -17,11 +26,32 @@ func Init(env string) {
 	nodeEnv = env
 	switch env {
 	case NODE_ENV_FULL_SYNC:
-		fullNode = NewFullMode(conf.EKTConfig)
+		fullNode = NewFullMode()
 	case NODE_ENV_DELEGETE:
-		fullNode = NewDelegateNode(conf.EKTConfig)
+		fullNode = NewDelegateNode()
+	case FORK_ENV:
+		fullNode = NewForkNode()
+	case Adaptive:
+		env := checkEnv()
+		Init(env)
 	}
-	go fullNode.StartNode()
+	fullNode.StartNode()
+}
+
+func checkEnv() string {
+	for _, peer := range param.MainChainDelegateNode {
+		if peer.Equal(conf.EKTConfig.Node) {
+			pub, err := crypto.PubKey(conf.EKTConfig.PrivateKey)
+			if err != nil {
+				return NODE_ENV_FULL_SYNC
+			}
+			addr := types.FromPubKeyToAddress(pub)
+			if strings.EqualFold(conf.EKTConfig.Node.Account, hex.EncodeToString(addr)) {
+				return NODE_ENV_DELEGETE
+			}
+		}
+	}
+	return NODE_ENV_FULL_SYNC
 }
 
 func GetMainChain() *blockchain.BlockChain {
@@ -35,11 +65,11 @@ func SuggestFee() int64 {
 /*
 	for delegate node
 */
-func BlockFromPeer(block blockchain.Block) {
-	fullNode.BlockFromPeer(block)
+func BlockFromPeer(clog *ctxlog.ContextLog, block *blockchain.Block) {
+	fullNode.BlockFromPeer(clog, block)
 }
 
-func VoteFromPeer(vote blockchain.BlockVote) {
+func VoteFromPeer(vote blockchain.PeerBlockVote) {
 	fullNode.VoteFromPeer(vote)
 }
 
