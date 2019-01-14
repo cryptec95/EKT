@@ -135,12 +135,24 @@ func (chain *BlockChain) ValidateBlock(next Block) bool {
 				newBlock.GetHeader().CheckFromAndBurnGas(tx)
 				newBlock.Transactions = append(newBlock.Transactions, tx)
 				log.LogErr(newBlock.GetHeader().ReceiptRoot.MustInsert(tx.TxId(), _receipt.Bytes()))
+				receiptDetail := userevent.ReceiptDetail{
+					Receipt:     _receipt,
+					BlockNumber: next.GetHeader().Height,
+					Index:       int64(i),
+				}
+				log.LogErr(db.GetDBInst().Set(schema.GetReceiptByTxHashKey(chain.ChainId, tx.TransactionId()), receiptDetail.Bytes()))
 				newBlock.TransactionReceipts = append(newBlock.TransactionReceipts, _receipt)
 				continue
 			}
 		}
 		receipt = newBlock.NewTransaction(tx)
 		log.LogErr(newBlock.GetHeader().ReceiptRoot.MustInsert(tx.TxId(), receipt.Bytes()))
+		receiptDetail := userevent.ReceiptDetail{
+			Receipt:     *receipt,
+			BlockNumber: next.GetHeader().Height,
+			Index:       int64(i),
+		}
+		log.LogErr(db.GetDBInst().Set(schema.GetReceiptByTxHashKey(chain.ChainId, tx.TransactionId()), receiptDetail.Bytes()))
 		newBlock.Transactions = append(newBlock.Transactions, tx)
 		newBlock.TransactionReceipts = append(newBlock.TransactionReceipts, *receipt)
 	}
