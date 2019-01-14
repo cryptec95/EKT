@@ -53,7 +53,6 @@ func (chain *BlockChain) PackTransaction(clog *ctxlog.ContextLog, block *Block) 
 	eventTimeout := time.After(t)
 
 	start := time.Now().UnixNano()
-	started := false
 	numTx := 0
 	for {
 		flag := false
@@ -63,10 +62,6 @@ func (chain *BlockChain) PackTransaction(clog *ctxlog.ContextLog, block *Block) 
 		default:
 			txs := chain.Pool.Pop(20)
 			if len(txs) > 0 {
-				if !started {
-					started = true
-					start = time.Now().UnixNano()
-				}
 				for _, tx := range txs {
 					receipt := block.NewTransaction(*tx)
 					log.LogErr(block.Header.TxRoot.MustInsert(tx.TxId(), tx.Bytes()))
