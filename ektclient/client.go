@@ -213,6 +213,28 @@ func (client Client) SendTransaction(tx userevent.Transaction) error {
 	return errors.New("send transaction failed")
 }
 
+func (client Client) GetReceipt(txHash string) *userevent.ReceiptDetail {
+	for _, node := range client.peers {
+		url := fmt.Sprintf(`http://%s:%d/transaction/api/getReceiptByTxHash?hash=%s`, node.Address, node.Port, txHash)
+		resp, err := util.HttpGet(url)
+		if err != nil {
+			continue
+		}
+		result := struct {
+			Status int64                   `json:"status"`
+			Msg    string                  `json:"msg"`
+			Detail userevent.ReceiptDetail `json:"result"`
+		}{}
+		err = json.Unmarshal(resp, &result)
+		if err != nil || result.Detail.BlockNumber == 0 {
+			continue
+		}
+		return &result.Detail
+	}
+
+	return nil
+}
+
 func (client Client) GetGenesisAccounts() []types.Account {
 	for _, node := range client.peers {
 		url := fmt.Sprintf(`http://%s:%d/account/api/genesisAccount`, node.Address, node.Port)
