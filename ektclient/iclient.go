@@ -24,6 +24,7 @@ type IClient interface {
 	// transaction
 	GetSuggestionFee() int64
 	SendTransaction(tx userevent.Transaction) error
+	GetReceipt(txHash string) *userevent.ReceiptDetail
 
 	// account
 	GetAccountNonce(address string) int64
