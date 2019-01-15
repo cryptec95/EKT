@@ -12,10 +12,21 @@ import (
 	"github.com/EducationEKT/EKT/core/types"
 	"github.com/EducationEKT/EKT/core/userevent"
 	"github.com/EducationEKT/EKT/crypto"
+	"github.com/EducationEKT/EKT/param"
 	"github.com/EducationEKT/EKT/util"
 
 	"github.com/EducationEKT/xserver/x_http/x_resp"
 )
+
+var client IClient
+
+func init() {
+	client = NewClient(param.MainChainDelegateNode)
+}
+
+func GetInst() IClient {
+	return client
+}
 
 type Client struct {
 	peers []types.Peer
