@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/hex"
 	"encoding/json"
+	"github.com/EducationEKT/EKT/downloader"
 	"strconv"
 	"time"
 
@@ -12,7 +13,6 @@ import (
 	"github.com/EducationEKT/EKT/core/userevent"
 	"github.com/EducationEKT/EKT/crypto"
 	"github.com/EducationEKT/EKT/db"
-	"github.com/EducationEKT/EKT/ektclient"
 	"github.com/EducationEKT/EKT/log"
 	"github.com/EducationEKT/EKT/vm"
 )
@@ -23,10 +23,8 @@ const (
 )
 
 type IBlock interface {
-	GetHeader() Header
 	GetTransactions() []userevent.Transaction
 	GetTxReceipts() []userevent.TransactionReceipt
-	ValidateHash() bool
 }
 
 type Block struct {
@@ -51,7 +49,7 @@ func (block Block) GetTransactions() []userevent.Transaction {
 	if hex.EncodeToString(block.GetHeader().TxHash) == EMPTY_TX {
 		return []userevent.Transaction{}
 	} else if len(block.Transactions) == 0 {
-		body := ektclient.GetInst().GetValueByHash(block.GetHeader().TxHash)
+		body := downloader.Synchronise(block.GetHeader().TxHash)
 		if !bytes.Equal(crypto.Sha3_256(body), block.GetHeader().TxHash) {
 			return nil
 		}
@@ -69,7 +67,7 @@ func (block Block) GetTxReceipts() []userevent.TransactionReceipt {
 	if hex.EncodeToString(block.GetHeader().TxHash) == EMPTY_TX {
 		return []userevent.TransactionReceipt{}
 	} else if len(block.TransactionReceipts) == 0 {
-		body := ektclient.GetInst().GetValueByHash(block.GetHeader().ReceiptHash)
+		body := downloader.Synchronise(block.GetHeader().ReceiptHash)
 		if !bytes.Equal(crypto.Sha3_256(body), block.GetHeader().ReceiptHash) {
 			return nil
 		}

@@ -6,6 +6,12 @@ import (
 	"github.com/EducationEKT/EKT/core/userevent"
 )
 
+var client IClient
+
+func GetInst() IClient {
+	return client
+}
+
 type IClient interface {
 	// block
 	GetHeaderByHeight(height int64) *blockchain.Header
