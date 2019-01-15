@@ -79,6 +79,7 @@ func builtinAWM_contract_call(call FunctionCall) Value {
 	args := call.ArgumentList[2:]
 
 	log.LogErr(vm.Set("args", args))
+	log.LogErr(vm.Set("sender", hex.EncodeToString(call.Otto.tx.To)))
 
 	_, err = vm.Run(fmt.Sprintf("var result = %s.apply(null, args);", method.String()))
 	if err != nil {
