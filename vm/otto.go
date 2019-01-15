@@ -32,6 +32,8 @@ type Otto struct {
 	Interrupt chan func()
 	chain     _interface.VMChain
 	runtime   *_runtime
+	db        db.IKVDatabase
+	tx        *userevent.Transaction
 	seed      []byte
 	rc        int // random count
 }
@@ -76,6 +78,7 @@ func (otto *Otto) ContractCall(tx userevent.Transaction, timeout time.Duration) 
 }
 
 func (otto *Otto) contractCall(tx userevent.Transaction, ch chan *ContractCallResp) {
+	otto.tx = &tx
 	err := otto.LoadContract(tx.To)
 	if err != nil {
 		ch <- NewContractCallResp(nil, nil, err)
@@ -181,9 +184,10 @@ func (otto *Otto) initContract(code []byte, ch chan *ContractData) {
 	ch <- NewContractData(&contractData, err)
 }
 
-func NewVM(chain _interface.VMChain) *Otto {
+func NewVM(chain _interface.VMChain, db db.IKVDatabase) *Otto {
 	self := &Otto{
 		runtime: newContext(),
+		db:      db,
 		rc:      0,
 	}
 	self.runtime.otto = self
@@ -228,6 +232,7 @@ func (otto *Otto) call(tx userevent.Transaction) *ContractCallResp {
 	`)
 
 	if err != nil {
+		fmt.Println("================", err)
 		return NewContractCallResp(nil, nil, err)
 	}
 
@@ -289,7 +294,7 @@ func (otto *Otto) loadContractWithAccount(account types.ContractAccount) error {
 }
 
 func (otto *Otto) clone() *Otto {
-	return NewVM(otto.chain)
+	return NewVM(otto.chain, otto.db)
 }
 
 // Run will run the given source (parsing it first if necessary), returning the resulting value and error (if any)

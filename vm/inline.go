@@ -5869,6 +5869,78 @@ func _newContext(runtime *_runtime) {
 			},
 		}
 
+		db_set_function := &_object{
+			runtime:     runtime,
+			class:       "Function",
+			objectClass: _classObject,
+			prototype:   runtime.global.FunctionPrototype,
+			extensible:  true,
+			property: map[string]_property{
+				"length": _property{
+					mode: 0,
+					value: Value{
+						kind:  valueNumber,
+						value: 3,
+					},
+				},
+			},
+			propertyOrder: []string{
+				"length",
+			},
+			value: _nativeFunctionObject{
+				name: "db_set",
+				call: builtin_awm_db_set,
+			},
+		}
+
+		db_get_function := &_object{
+			runtime:     runtime,
+			class:       "Function",
+			objectClass: _classObject,
+			prototype:   runtime.global.FunctionPrototype,
+			extensible:  true,
+			property: map[string]_property{
+				"length": _property{
+					mode: 0,
+					value: Value{
+						kind:  valueNumber,
+						value: 3,
+					},
+				},
+			},
+			propertyOrder: []string{
+				"length",
+			},
+			value: _nativeFunctionObject{
+				name: "db_get",
+				call: builtin_awm_db_get,
+			},
+		}
+
+		db_delete_function := &_object{
+			runtime:     runtime,
+			class:       "Function",
+			objectClass: _classObject,
+			prototype:   runtime.global.FunctionPrototype,
+			extensible:  true,
+			property: map[string]_property{
+				"length": _property{
+					mode: 0,
+					value: Value{
+						kind:  valueNumber,
+						value: 3,
+					},
+				},
+			},
+			propertyOrder: []string{
+				"length",
+			},
+			value: _nativeFunctionObject{
+				name: "db_delete",
+				call: builtin_awm_db_delete,
+			},
+		}
+
 		runtime.global.AWM = &_object{
 			runtime:     runtime,
 			class:       "AWM",
@@ -5925,6 +5997,27 @@ func _newContext(runtime *_runtime) {
 						value: contract_call_function,
 					},
 				},
+				"db_set": {
+					mode: 0101,
+					value: Value{
+						kind:  valueObject,
+						value: db_set_function,
+					},
+				},
+				"db_get": {
+					mode: 0101,
+					value: Value{
+						kind:  valueObject,
+						value: db_get_function,
+					},
+				},
+				"db_delete": {
+					mode: 0101,
+					value: Value{
+						kind:  valueObject,
+						value: db_delete_function,
+					},
+				},
 			},
 			propertyOrder: []string{
 				"sha3_256",
@@ -5934,6 +6027,9 @@ func _newContext(runtime *_runtime) {
 				"mpt_save",
 				"mpt_get",
 				"contract_call",
+				"db_set",
+				"db_get",
+				"db_delete",
 			},
 		}
 	}

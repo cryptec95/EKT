@@ -3,12 +3,10 @@ package vm
 import (
 	"bytes"
 	"encoding/hex"
-	"encoding/json"
 	"fmt"
 	"strings"
 
 	"github.com/EducationEKT/EKT/core/types"
-	"github.com/EducationEKT/EKT/core/userevent"
 	"github.com/EducationEKT/EKT/crypto"
 	"github.com/EducationEKT/EKT/log"
 )
@@ -54,18 +52,6 @@ func builtinAWM_secp256k1_verify(call FunctionCall) Value {
 		return toValue_bool(false)
 	}
 	return toValue_bool(bytes.Equal(types.FromPubKeyToAddress(pubKey), address_b))
-}
-
-func builtinAWM_Contract_Refuse_Tx(call FunctionCall) Value {
-	data := call.Argument(0).string()
-	var tx userevent.Transaction
-	err := json.Unmarshal([]byte(data), &tx)
-	if err != nil {
-		return toValue_string("")
-	}
-	subTx := userevent.NewSubTransaction(tx.TxId(), tx.To, tx.From, tx.Amount, "contract refused", tx.TokenAddress)
-	txData, _ := json.Marshal(subTx)
-	return toValue_string(string(txData))
 }
 
 func builtinAWM_contract_call(call FunctionCall) Value {
