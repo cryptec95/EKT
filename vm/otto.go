@@ -34,7 +34,6 @@ type Otto struct {
 	chain     _interface.VMChain
 	runtime   *_runtime
 	db        db.IKVDatabase
-	tx        *userevent.Transaction
 	seed      []byte
 	rc        int // random count
 }
