@@ -152,10 +152,10 @@ func getAccountNonce(address string) int64 {
 				if ok {
 					return int64(nonce) + 1
 				} else {
-					return -1
+					return 1
 				}
 			}
 		}
 	}
-	return -1
+	return 1
 }
