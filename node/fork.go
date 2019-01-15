@@ -8,7 +8,6 @@ import (
 	"github.com/EducationEKT/EKT/ctxlog"
 	"github.com/EducationEKT/EKT/ektclient"
 	"github.com/EducationEKT/EKT/encapdb"
-	"github.com/EducationEKT/EKT/param"
 )
 
 type ForkNode struct {
@@ -20,7 +19,7 @@ type ForkNode struct {
 func NewForkNode() *ForkNode {
 	node := &ForkNode{
 		blockchain: blockchain.NewBlockChain(1),
-		client:     ektclient.NewClient(param.MainChainDelegateNode),
+		client:     ektclient.GetInst(),
 	}
 	node.dbft = consensus.NewDbftConsensus(node.blockchain, node.client)
 	return node
