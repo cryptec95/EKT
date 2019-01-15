@@ -18,7 +18,7 @@ import (
 	"github.com/EducationEKT/xserver/x_http/x_resp"
 )
 
-func init() {
+func InitEKTClient() {
 	client = NewClient(param.MainChainDelegateNode)
 }
 

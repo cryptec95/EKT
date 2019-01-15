@@ -10,6 +10,7 @@ import (
 	_ "github.com/EducationEKT/EKT/api"
 	"github.com/EducationEKT/EKT/conf"
 	"github.com/EducationEKT/EKT/db"
+	"github.com/EducationEKT/EKT/ektclient"
 	"github.com/EducationEKT/EKT/log"
 	"github.com/EducationEKT/EKT/node"
 	"github.com/EducationEKT/EKT/param"
@@ -91,6 +92,9 @@ func InitService(confPath string) error {
 
 	// 初始化委托人节点
 	param.InitBootNodes()
+
+	// 初始化ektClient
+	ektclient.InitEKTClient()
 
 	return nil
 }
