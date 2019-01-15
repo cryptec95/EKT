@@ -12,6 +12,7 @@ import (
 	"github.com/EducationEKT/EKT/core/userevent"
 	"github.com/EducationEKT/EKT/crypto"
 	"github.com/EducationEKT/EKT/db"
+	"github.com/EducationEKT/EKT/ektclient"
 	"github.com/EducationEKT/EKT/log"
 	"github.com/EducationEKT/EKT/vm"
 )
@@ -50,12 +51,12 @@ func (block Block) GetTransactions() []userevent.Transaction {
 	if hex.EncodeToString(block.GetHeader().TxHash) == EMPTY_TX {
 		return []userevent.Transaction{}
 	} else if len(block.Transactions) == 0 {
-		body, err := block.Miner.GetDBValue(hex.EncodeToString(block.GetHeader().TxHash))
-		if err != nil {
+		body := ektclient.GetInst().GetValueByHash(block.GetHeader().TxHash)
+		if !bytes.Equal(crypto.Sha3_256(body), block.GetHeader().TxHash) {
 			return nil
 		}
 		var txs []userevent.Transaction
-		err = json.Unmarshal(body, &txs)
+		err := json.Unmarshal(body, &txs)
 		if err != nil {
 			return nil
 		}
@@ -68,12 +69,12 @@ func (block Block) GetTxReceipts() []userevent.TransactionReceipt {
 	if hex.EncodeToString(block.GetHeader().TxHash) == EMPTY_TX {
 		return []userevent.TransactionReceipt{}
 	} else if len(block.TransactionReceipts) == 0 {
-		body, err := block.Miner.GetDBValue(hex.EncodeToString(block.GetHeader().ReceiptHash))
-		if err != nil {
+		body := ektclient.GetInst().GetValueByHash(block.GetHeader().ReceiptHash)
+		if !bytes.Equal(crypto.Sha3_256(body), block.GetHeader().ReceiptHash) {
 			return nil
 		}
 		var receipts []userevent.TransactionReceipt
-		err = json.Unmarshal(body, &receipts)
+		err := json.Unmarshal(body, &receipts)
 		if err != nil {
 			return nil
 		}
