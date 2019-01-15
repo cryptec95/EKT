@@ -131,7 +131,7 @@ func (block *Block) ContractCall(tx userevent.Transaction) *userevent.Transactio
 		receipt := userevent.NewTransactionReceipt(tx, false, userevent.FailType_INVALID_ADDRESS)
 		return &receipt
 	}
-	_vm := vm.NewVM(block.GetHeader())
+	_vm := vm.NewVM(block.GetHeader(), db.GetDBInst())
 	contractAccount := to.Contracts[hex.EncodeToString(toContractAddress)]
 	txs, data, err := _vm.ContractCall(tx, VM_CALL_TIMEOUT)
 	if err != nil {
@@ -170,7 +170,7 @@ func (block *Block) NormalTransfer(tx userevent.Transaction) *userevent.Transact
 func (block *Block) DeployContract(tx userevent.Transaction) *userevent.TransactionReceipt {
 	account, _ := block.GetHeader().GetAccount(tx.From)
 
-	_vm := vm.NewVM(block.GetHeader())
+	_vm := vm.NewVM(block.GetHeader(), db.GetDBInst())
 	contractData, err := _vm.InitContractWithTimeout([]byte(tx.Data), VM_CALL_TIMEOUT)
 	if err != nil {
 		if err == vm.TIMEOUT_ERROR {
@@ -237,7 +237,7 @@ func (block *Block) upgradeContract(tx userevent.Transaction) *userevent.Transac
 		return &receipt
 	}
 
-	_vm := vm.NewVM(block.GetHeader())
+	_vm := vm.NewVM(block.GetHeader(), db.GetDBInst())
 	contractData, err := _vm.UpgradeContract([]byte(tx.Data), &contractAccount.ContractData, VM_CALL_TIMEOUT)
 	if err != nil {
 		receipt := userevent.NewTransactionReceipt(tx, false, userevent.FailType_CONTRACT_ERROR)
