@@ -243,9 +243,8 @@ func (block *Block) upgradeContract(tx userevent.Transaction) *userevent.Transac
 		return &receipt
 	}
 
-	logErr(db.GetDBInst().Set(contractAccount.CodeHash, []byte(tx.Data)))
-
 	contractAccount.CodeHash = crypto.Sha3_256([]byte(tx.Data))
+	logErr(db.GetDBInst().Set(contractAccount.CodeHash, []byte(tx.Data)))
 	contractAccount.ContractData = *contractData
 
 	account.Contracts[hex.EncodeToString(tx.To[32:64])] = contractAccount
