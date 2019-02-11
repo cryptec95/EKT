@@ -46,7 +46,9 @@ func (dbft DbftConsensus) GetRound() types.Round {
 
 // 校验从其他委托人节点过来的区块数据
 func (dbft DbftConsensus) BlockFromPeer(clog *ctxlog.ContextLog, block *blockchain.Block) {
-	dbft.BlockManager.Insert(block)
+	if !dbft.BlockManager.Insert(block) {
+		return
+	}
 
 	header := block.GetHeader()
 
@@ -252,6 +254,7 @@ func (dbft DbftConsensus) Pack(packTime int64) {
 	dbft.BlockManager.Insert(block)
 	dbft.BlockManager.SetBlockStatus(block.Hash, blockchain.BLOCK_VALID)
 	dbft.BlockManager.SetBlockStatusByHeight(block.GetHeader().Height, block.GetHeader().Timestamp)
+	dbft.SendVote(*block.GetHeader())
 
 	// 签名
 	if err := block.Sign(conf.EKTConfig.PrivateKey); err != nil {
