@@ -4,8 +4,13 @@ import (
 	"bytes"
 	"io/ioutil"
 	"net/http"
+	"runtime"
 	"time"
 )
+
+func init() {
+	http.DefaultTransport.(*http.Transport).MaxIdleConnsPerHost = runtime.NumGoroutine()
+}
 
 func HttpGet(url string) ([]byte, error) {
 	client := &http.Client{}
@@ -15,6 +20,9 @@ func HttpGet(url string) ([]byte, error) {
 		return nil, err
 	}
 	resp, err := client.Do(request)
+	if resp != nil {
+		defer resp.Body.Close()
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -30,6 +38,9 @@ func HttpPost(url string, body []byte) ([]byte, error) {
 	}
 	request.Header["Content-Type"] = []string{"application/json"}
 	resp, err := client.Do(request)
+	if resp != nil {
+		defer resp.Body.Close()
+	}
 	if err != nil {
 		return nil, err
 	}

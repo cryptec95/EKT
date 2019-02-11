@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/hex"
 	"encoding/json"
+	"github.com/EducationEKT/EKT/downloader"
 	"strconv"
 	"time"
 
@@ -22,10 +23,8 @@ const (
 )
 
 type IBlock interface {
-	GetHeader() Header
 	GetTransactions() []userevent.Transaction
 	GetTxReceipts() []userevent.TransactionReceipt
-	ValidateHash() bool
 }
 
 type Block struct {
@@ -50,12 +49,12 @@ func (block Block) GetTransactions() []userevent.Transaction {
 	if hex.EncodeToString(block.GetHeader().TxHash) == EMPTY_TX {
 		return []userevent.Transaction{}
 	} else if len(block.Transactions) == 0 {
-		body, err := block.Miner.GetDBValue(hex.EncodeToString(block.GetHeader().TxHash))
-		if err != nil {
+		body := downloader.Synchronise(block.GetHeader().TxHash)
+		if !bytes.Equal(crypto.Sha3_256(body), block.GetHeader().TxHash) {
 			return nil
 		}
 		var txs []userevent.Transaction
-		err = json.Unmarshal(body, &txs)
+		err := json.Unmarshal(body, &txs)
 		if err != nil {
 			return nil
 		}
@@ -68,12 +67,12 @@ func (block Block) GetTxReceipts() []userevent.TransactionReceipt {
 	if hex.EncodeToString(block.GetHeader().TxHash) == EMPTY_TX {
 		return []userevent.TransactionReceipt{}
 	} else if len(block.TransactionReceipts) == 0 {
-		body, err := block.Miner.GetDBValue(hex.EncodeToString(block.GetHeader().ReceiptHash))
-		if err != nil {
+		body := downloader.Synchronise(block.GetHeader().ReceiptHash)
+		if !bytes.Equal(crypto.Sha3_256(body), block.GetHeader().ReceiptHash) {
 			return nil
 		}
 		var receipts []userevent.TransactionReceipt
-		err = json.Unmarshal(body, &receipts)
+		err := json.Unmarshal(body, &receipts)
 		if err != nil {
 			return nil
 		}
@@ -244,9 +243,8 @@ func (block *Block) upgradeContract(tx userevent.Transaction) *userevent.Transac
 		return &receipt
 	}
 
-	logErr(db.GetDBInst().Set(contractAccount.CodeHash, []byte(tx.Data)))
-
 	contractAccount.CodeHash = crypto.Sha3_256([]byte(tx.Data))
+	logErr(db.GetDBInst().Set(contractAccount.CodeHash, []byte(tx.Data)))
 	contractAccount.ContractData = *contractData
 
 	account.Contracts[hex.EncodeToString(tx.To[32:64])] = contractAccount

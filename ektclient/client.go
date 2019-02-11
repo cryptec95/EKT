@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/EducationEKT/EKT/param"
 	"strconv"
 
 	"github.com/EducationEKT/EKT/blockchain"
@@ -16,6 +17,10 @@ import (
 
 	"github.com/EducationEKT/xserver/x_http/x_resp"
 )
+
+func InitEKTClient() {
+	client = NewClient(param.MainChainDelegateNode)
+}
 
 type Client struct {
 	peers []types.Peer

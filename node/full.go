@@ -9,7 +9,6 @@ import (
 	"github.com/EducationEKT/EKT/ctxlog"
 	"github.com/EducationEKT/EKT/ektclient"
 	"github.com/EducationEKT/EKT/encapdb"
-	"github.com/EducationEKT/EKT/param"
 )
 
 type FullNode struct {
@@ -21,14 +20,14 @@ type FullNode struct {
 func NewFullMode() *FullNode {
 	node := &FullNode{
 		blockchain: blockchain.NewBlockChain(1),
-		client:     ektclient.NewClient(param.MainChainDelegateNode),
+		client:     ektclient.GetInst(),
 	}
 	node.dbft = consensus.NewDbftConsensus(node.blockchain, node.client)
 	return node
 }
 
 func (node FullNode) StartNode() {
-	accounts := ektclient.NewClient(param.MainChainDelegateNode).GetGenesisAccounts()
+	accounts := node.client.GetGenesisAccounts()
 	if len(accounts) > 0 {
 		conf.EKTConfig.GenesisBlockAccounts = accounts
 	}

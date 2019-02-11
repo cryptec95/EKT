@@ -308,7 +308,7 @@ func (dbft DbftConsensus) ForkSync(height int64) bool {
 	}
 
 	newBlock := blockchain.NewBlock_V2(dbft.Blockchain.LastHeader(), block.GetHeader().Timestamp, block.Miner)
-	data := ektclient.NewClient(param.MainChainDelegateNode).GetValueByHash(block.GetHeader().TxHash)
+	data := ektclient.GetInst().GetValueByHash(block.GetHeader().TxHash)
 	if data == nil {
 		return false
 	}

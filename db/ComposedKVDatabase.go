@@ -14,8 +14,7 @@ func NewComposedKVDatabase(filePath string) *ComposedKVDatabase {
 
 func (db *ComposedKVDatabase) Set(key, value []byte) error {
 	db.mem.Set(key, value)
-	go db.levelDB.Set(key, value)
-	return nil
+	return db.levelDB.Set(key, value)
 }
 
 func (db *ComposedKVDatabase) Get(key []byte) (value []byte, err error) {
