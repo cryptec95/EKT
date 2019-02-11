@@ -114,6 +114,7 @@ func (chain *BlockChain) ValidateBlock(next Block) bool {
 	lastHeader := chain.LastHeader()
 	newBlock := CreateBlock(lastHeader, next.GetHeader().Timestamp, next.Miner)
 	receipts := next.GetTxReceipts()
+
 	for i, tx := range next.GetTransactions() {
 		if chain.Pool.GetTx(tx.TxId()) == nil {
 			if !userevent.ValidateTransaction(tx) {
