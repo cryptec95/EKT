@@ -140,14 +140,16 @@ func (block *Block) ContractCall(tx userevent.Transaction) *userevent.Transactio
 		}
 		return userevent.ContractRefuseTx(tx)
 	}
-	contractAccount.ContractData.Contract = string(data)
-	to.Contracts[hex.EncodeToString(toContractAddress)] = contractAccount
-	block.GetHeader().StatTree.MustInsert(toAccountAddress, to.ToBytes())
 
 	if !block.CheckSubTransaction(tx, txs) {
 		_receipt := userevent.NewTransactionReceipt(tx, false, userevent.FailType_CHECK_CONTRACT_SUBTX_ERROR)
 		return &_receipt
 	}
+
+	contractAccount.ContractData.Contract = string(data)
+	to.Contracts[hex.EncodeToString(toContractAddress)] = contractAccount
+	log.LogErr(block.GetHeader().StatTree.MustInsert(toAccountAddress, to.ToBytes()))
+
 	subTx := userevent.NewSubTransaction(tx.TxId(), tx.From, tx.To, tx.Amount, tx.Data, tx.TokenAddress)
 	txs = append(txs, *subTx)
 	receipt := userevent.NewTransactionReceipt(tx, true, userevent.FailType_SUCCESS)
