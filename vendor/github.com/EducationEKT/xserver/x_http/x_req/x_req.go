@@ -82,12 +82,15 @@ func (req *XReq) parseQuery() {
 
 func (req *XReq) parseBody() *x_err.XErr {
 	body, err := ioutil.ReadAll(req.R.Body)
+	if req.R.Body !=nil {
+		defer req.R.Body.Close()
+	}
 	req.Body = body
 	if err != nil {
 		return x_err.New(-1, "read body error")
 	}
 	contentType := req.R.Header.Get("Content-Type")
-	if contentType == "application/json" {
+	if strings.Contains(contentType, "json") {
 		err = json.Unmarshal(body, &req.Param)
 		if err != nil {
 			return x_err.New(-1, "body parse error")
