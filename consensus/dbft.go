@@ -311,20 +311,22 @@ func (dbft DbftConsensus) ForkSync(height int64) bool {
 	}
 
 	newBlock := blockchain.NewBlock_V2(dbft.Blockchain.LastHeader(), block.GetHeader().Timestamp, block.Miner)
-	data := ektclient.GetInst().GetValueByHash(block.GetHeader().TxHash)
-	if data == nil {
-		return false
-	}
-	var txs []userevent.Transaction
-	err := json.Unmarshal(data, &txs)
-	if len(txs) > 0 {
-		for _, tx := range txs {
-			receipt := newBlock.NewTransaction(tx)
-			newBlock.Transactions = append(newBlock.Transactions, tx)
-			newBlock.TransactionReceipts = append(newBlock.TransactionReceipts, *receipt)
+	if hex.EncodeToString(block.GetHeader().TxHash) != blockchain.EMPTY_TX {
+		data := ektclient.GetInst().GetValueByHash(block.GetHeader().TxHash)
+		if data == nil {
+			return false
 		}
-	} else if err != nil {
-		return false
+		var txs []userevent.Transaction
+		err := json.Unmarshal(data, &txs)
+		if len(txs) > 0 {
+			for _, tx := range txs {
+				receipt := newBlock.NewTransaction(tx)
+				newBlock.Transactions = append(newBlock.Transactions, tx)
+				newBlock.TransactionReceipts = append(newBlock.TransactionReceipts, *receipt)
+			}
+		} else if err != nil {
+			return false
+		}
 	}
 	newBlock.Finish()
 	dbft.SaveBlock(newBlock, nil)
